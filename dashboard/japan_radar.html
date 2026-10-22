@@ -1156,7 +1156,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     const H = holdingsMerged();
     $("n-port").textContent = H.length ? String(H.length) : "";
     renderTotals(H);
-    $("port-sub").textContent = port ? "refreshed " + (port.generated_at || "").replace("T", " ").slice(0, 16) + " JST · " + H.length + " companies" : "Waiting for the first portfolio refresh";
+    $("port-sub").textContent = canAdmin === false ? "private to this page's owner and editors" : port ? "refreshed " + (port.generated_at || "").replace("T", " ").slice(0, 16) + " JST · " + H.length + " companies" : "Waiting for the first portfolio refresh";
     const t = $("port-t"); t.replaceChildren();
     const rows = H.filter((h) => portGroup === "all" || (portGroup === "held" ? h.group === "held" : h.group !== "held"));
     const thead = el("thead"), hr = el("tr");
