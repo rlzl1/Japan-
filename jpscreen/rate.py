@@ -8,14 +8,15 @@ Stars (same scale as Korea):
   2  for the record: routine, small, or the company fails the profit and debt filters
   1  usually bad for minority shareholders, or untradeable
 
-Each category starts from STAR_BASE and moves with the size of the edge; every rating lists its reasons.
-Bases are carried over from the Korean 12-month backtest until the Japanese backtest (backtest.py) re-sets them.
+The stars themselves come from rating.py (edge + value − risk, the Korean radar's current system); this module
+sizes each catalyst from its disclosure and applies the profit and debt filters.
 """
 from __future__ import annotations
 
 import math
 from typing import Optional
 
+from . import rating
 from .classify import CAT_GROUP, CAT_LABEL, CATALYST_LABEL, SPECIAL_SITUATIONS, Tag
 from .fundamentals import Fundamentals
 from .prices import Quote
@@ -31,12 +32,6 @@ LIMITS = dict(
     large_cap=2e11,            # ≈ ₩2T
 )
 
-STAR_BASE = {
-    "tender": 2.0, "sale_process": 2.0, "control": 1.5, "mna": 2.0, "spinoff": 2.0, "activist": 2.0,
-    "proxy": 2.5, "lawsuit": 2.0, "liquidation": 3.0, "capital_return": 3.0, "backdoor": 2.0, "listing": 2.0,
-    "buyback": 2.0, "cancellation": 2.0, "dividend": 2.0, "valueup": 2.0, "insider": 2.0,
-    "contract": 1.5, "guidance": 2.0, "asset_sale": 2.0,
-}
 
 
 def yen(v: Optional[float]) -> str:
@@ -109,6 +104,14 @@ def evaluate(h: dict, tag: Tag, cat: dict, q: Optional[Quote], f: Optional[Funda
         h["asset_margin_vs_mcap"] = extra["am_mcap"]
     if q and q.pbr:
         h["pb"] = q.pbr
+    if f and mcap and f.fcf_history:
+        fc = [x for x in f.fcf_history[:3] if x is not None]
+        if fc:
+            h["fcf3_yield"] = sum(fc) / len(fc) / mcap
+    if f and (f.op_income is not None or f.net_income is not None):
+        h["op_income"], h["net_income"] = f.op_income, f.net_income
+    elif q and q.eps is not None and q.shares_issued:
+        h["op_income"] = h["net_income"] = q.eps * q.shares_issued   # company forecast, when no filing was read
     # ---- size the catalyst
     k = tag.kind
     bits: list[str] = []
@@ -297,7 +300,7 @@ def evaluate(h: dict, tag: Tag, cat: dict, q: Optional[Quote], f: Optional[Funda
     h["passes"] = not reasons
     h["fail_reasons"] = reasons
     h["watch"] = [WATCH_LABEL.get(t, t) for t in watch_tags]
-    h["stars"], h["why"] = rate(h, tag, cat, limits)
+    h["stars"], h["why"], h["rating"] = rating.rate(h, tag.kind, tag.cat, tag.group, cat, tag.flags)
     h["score"] = round(_score(h, tag, cat) + 20 * (h["stars"] or 0), 1)
     return h
 
@@ -332,206 +335,6 @@ def _score(h: dict, tag: Tag, cat: dict) -> float:
     if h.get("watch"):
         s += 15 + 5 * (len(h["watch"]) - 1)
     return s
-
-
-def rate(h: dict, tag: Tag, cat: dict, limits: dict = LIMITS) -> tuple[Optional[int], list[str]]:
-    if tag.signal == "warning":
-        return None, []
-    cid = tag.cat
-    k = tag.kind
-    why: list[str] = []
-    s = STAR_BASE.get(cid, 2.0)
-    prem = h.get("premium_pct")
-    if cid == "tender":
-        if k == "squeeze_out":
-            s = 1.5
-            why.append("post-bid squeeze-out: cash-out at the bid price")
-            if prem is not None and prem >= 2:
-                s += 1; why.append(f"{prem:.1f}% below the cash-out price")
-        else:
-            if prem is None:
-                why.append("offer price vs market unknown")
-            elif prem >= 10:
-                s += 2; why.append(f"{prem:.0f}% below the offer price")
-            elif prem >= 5:
-                s += 1; why.append(f"{prem:.0f}% spread to the offer")
-            elif prem <= 0:
-                s -= 1; why.append("trading at or above the offer: no spread (market expects a higher bid?)")
-            else:
-                why.append(f"only {prem:.1f}% spread to the offer")
-            if k == "self_tender":
-                s -= 0.5; why.append("self-tender: usually priced below market to buy out a cross-holder")
-            elif cat.get("delisting") and not cat.get("partial"):
-                s += 1; why.append("bid to take the company private: all shares can be tendered")
-            elif cat.get("partial"):
-                why.append("partial tender: only part of your shares is bought, the rest usually falls back once it closes")
-            if cat.get("old_price"):
-                s += 0.5; why.append("bid already raised once: contested or activist pressure")
-            if (cat.get("board_view") or tag.flags.get("board_view")) == "oppose":
-                why.append("board opposes: hostile, a counter-bid or higher price is possible")
-            if tag.flags.get("planned"):
-                why.append("announced but not launched yet (regulatory approvals pending)")
-            if cat.get("end") and h.get("asof") and cat["end"] < h["asof"]:
-                s -= 2; why.append(f"offer period ended {cat['end']}")
-    elif cid == "sale_process":
-        if cat.get("denied"):
-            s -= 1; why.append("company denies")
-        if cat.get("confirmed_review"):
-            s += 0.5; why.append("company confirms a review is under way")
-        if cat.get("special_committee"):
-            s += 1; why.append("special committee formed: the usual step before an MBO or parent buy-out")
-        if cat.get("proposal"):
-            s += 1; why.append("a takeover / buy-out proposal has been received")
-        kws = " ".join(cat.get("keywords") or [])
-        if any(x in kws for x in ("公開買付", "TOB", "MBO", "非公開化", "完全子会社化")):
-            s += 1; why.append("mentions a tender offer / going private")
-        elif "売却" in kws and "当社による" in (cat.get("snippet") or ""):
-            s -= 0.5; why.append("the company is the seller of a business")
-    elif cid == "control":
-        if cat.get("direction") == "down" or tag.flags.get("selling"):
-            s -= 0.5; why.append("a large holder sold down: overhang, sometimes a block looking for a buyer")
-        elif cat.get("direction") == "up":
-            why.append("a holder crossed 10%: who it is matters")
-            if cat.get("activist"):
-                s += 1; why.append("buyer is a known activist")
-    elif cid == "mna":
-        ap = h.get("appraisal_premium_pct")
-        if ap is not None:
-            if ap >= 10:
-                s += 2; why.append(f"exchange ratio implies {ap:.0f}% above market")
-            elif ap >= 4:
-                s += 1; why.append(f"exchange ratio implies {ap:.0f}% above market")
-            elif ap < 0:
-                why.append("exchange ratio implies a value below market")
-        if tag.role == "acquirer" and not h.get("target_listed"):
-            s -= 0.5; why.append("the company is the acquirer")
-    elif cid == "spinoff":
-        if cat.get("physical_split") or tag.flags.get("physical_split"):
-            s -= 0.5; why.append("business kept as a subsidiary (holding-company move)")
-        elif cat.get("spinoff") or tag.flags.get("spinoff"):
-            s += 0.5; why.append("spin-off: shareholders get the new shares")
-    elif cid == "activist":
-        if cat.get("activist"):
-            s += 1; why.append("known activist fund")
-        if tag.flags.get("creeping"):
-            s += 0.5; why.append("buying toward control without a bid")
-        if tag.flags.get("defense"):
-            s += 0.5; why.append("takeover-defence fight with an accumulator")
-        if cat.get("control"):
-            s += 0.5; why.append("filed for influence over management")
-    elif cid == "proxy":
-        if cat.get("activist"):
-            s += 1; why.append("run by a known activist")
-    elif cid == "liquidation":
-        nm = h.get("ncav_vs_mcap")
-        ry = h.get("return_yield")
-        if ry is not None:
-            s += 2 if ry >= 120 else (1 if ry >= 100 else -1)
-            why.append(f"expected distribution {ry:.0f}% of the price")
-        elif nm is not None:
-            s += 2 if nm >= 1 else (1 if nm >= 0.7 else -1)
-            why.append(f"net current assets {nm:.2f}x market cap")
-    elif cid == "listing":
-        if tag.flags.get("breach"):
-            why.append("does not meet TSE listing criteria: MBO, parent buy-out or market change often follows")
-            if (h.get("re_index") or 9) < 1 or (h.get("pb") or 9) < 0.8:
-                s += 1; why.append("cheap on assets while under listing pressure")
-            if tag.flags.get("improvement_period"):
-                s += 0.5; why.append("improvement period running")
-            if cat.get("considering_options"):
-                s += 0.5; why.append("plan mentions going private / parent / market change")
-        if tag.flags.get("upgrade"):
-            s += 0.5; why.append("moving up to Prime: index and fund demand")
-        if tag.flags.get("voluntary_delisting"):
-            why.append("delisting: check how minorities are cashed out")
-    elif cid == "buyback":
-        b = h.get("buyback_vs_mcap")
-        if b is not None:
-            s += 1.5 if b >= 0.05 else (1 if b >= 0.02 else (0 if b >= 0.01 else -0.5))
-            why.append(f"buyback {b*100:.1f}% of market cap")
-        if h.get("mcap") and h["mcap"] < limits["small_cap"] and (b or 0) >= 0.02:
-            s += 0.5; why.append("small cap: buying is large against trading")
-        if cat.get("tostnet") or tag.flags.get("tostnet"):
-            s -= 0.5; why.append("off-market block from one holder: no buying in the market")
-        if cat.get("to_cancel") or tag.flags.get("to_cancel"):
-            why.append("shares to be cancelled")
-    elif cid == "cancellation":
-        p = cat.get("pct_of_issued")
-        if p is not None:
-            s += 0.5 if p >= 5 else 0
-            why.append(f"cancels {p:.1f}% of shares")
-    elif cid == "dividend":
-        y = h.get("div_yield") or 0
-        s += 1.5 if y >= 7 else (0.5 if y >= 5 else 0)
-        if y:
-            why.append(f"{y:.1f}% yield")
-        if (cat.get("raise_pct") or 0) >= 50 or cat.get("special") or cat.get("initiation") or tag.flags.get("special") \
-                or tag.flags.get("initiation"):
-            s += 0.5; why.append("big raise, special or first dividend")
-        elif cat.get("raise_pct") is not None and cat["raise_pct"] < 0:
-            s -= 0.5; why.append("dividend lower than last year")
-    elif cid == "valueup":
-        ments = cat.get("mentions") or cat.get("keywords") or []
-        if h.get("mcap") and h["mcap"] >= limits["large_cap"]:
-            s += 1; why.append("large company: value-up plans moved large caps most (Korean backtest)")
-        if any(x in ments for x in ("消却", "自己株式")) and any(x in ments for x in ("総還元性向", "DOE", "累進配当", "株主還元")):
-            s += 0.5; why.append("commits to buybacks/cancellations and a payout target")
-        if any(x in ments for x in ("政策保有株式", "非事業用資産", "不動産の売却")):
-            s += 0.5; why.append("plans to sell cross-holdings or non-core property")
-    elif cid == "guidance":
-        oc = cat.get("op_chg")
-        if oc is not None:
-            s += 1 if oc >= 30 else (0.5 if oc >= 10 else 0)
-            why.append(f"operating profit forecast {oc:+.0f}%")
-        if (cat.get("div_raise_pct") or 0) >= 20:
-            s += 0.5; why.append("dividend raised with it")
-    elif cid == "contract":
-        p = h.get("contract_pct")
-        if p is not None:
-            why.append(f"order {p:.0f}% of revenue")
-            if p >= 100:
-                s -= 0.5; why.append("huge orders were usually sold into (Korean backtest)")
-    elif cid == "asset_sale":
-        pf = h.get("pro_forma_vs_mcap")
-        g = h.get("gain_vs_mcap")
-        if pf is not None:
-            s += 2 if pf >= 1 else (1 if pf >= 0.7 else 0)
-            why.append(f"net cash after the sale {pf:.2f}x market cap")
-        if g is not None:
-            s += 1 if g >= 0.10 else (0.5 if g >= 0.05 else 0)
-            why.append(f"gain {g*100:.1f}% of market cap: hidden value booked")
-        if cat.get("real_estate"):
-            why.append("real estate sold: crystallises book-to-market gap")
-        elif cat.get("cross_holdings"):
-            why.append("cross-shareholdings sold")
-    # ---- cheapness and quality
-    if h.get("watch"):
-        s += 1; why.append("on the value watchlist: " + ", ".join(h["watch"]))
-    else:
-        am, pe, ri = h.get("asset_margin_vs_mcap"), h.get("pe"), h.get("re_index")
-        if ri is not None and ri < 0.8:
-            s += 0.5; why.append(f"RE net-net index {ri:.2f}")
-        elif am is not None and am >= 0.5:
-            s += 0.5; why.append(f"cash+securities−liabilities {am:.2f}x market cap")
-        elif pe is not None and pe <= 8:
-            s += 0.5; why.append(f"P/E {pe:.1f}")
-    bad = [w for w in (h.get("warnings") or []) if not w.startswith("no ")]
-    if bad and cid not in ("tender", "mna", "capital_return", "liquidation"):
-        s -= 0.5; why.append(bad[0])
-    adv = h.get("adv")
-    if adv is not None:
-        if adv < limits["adv_none"]:
-            s -= 1.5; why.append("no trading in the last 20 sessions (suspended?)")
-        elif adv < limits["adv_very_thin"]:
-            s -= 1.5; why.append(f"very illiquid: ¥{adv/1e6:.1f}M traded a day")
-        elif adv < limits["adv_thin"]:
-            s -= 0.5; why.append(f"thin trading: ¥{adv/1e6:.1f}M a day")
-    if h.get("designation"):
-        s -= 1; why.append("exchange designation: " + h["designation"])
-    if not h.get("passes"):
-        s = min(s, 2)
-    stars = int(max(1, min(5, math.floor(s + 0.5))))
-    return stars, why
 
 
 def headline(h: dict, tag: Tag) -> str:

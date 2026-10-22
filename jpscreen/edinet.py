@@ -97,7 +97,7 @@ class Edinet:
 
     def package(self, doc_id: str) -> Optional[bytes]:
         try:
-            data = self.http.get(f"{API}/documents/{doc_id}", params=self._params(type=1))
+            data = self.http.get(f"{API}/documents/{doc_id}", params=self._params(type=1), store=False)
         except HttpError as e:
             log.info("EDINET package %s: %s", doc_id, e)
             return None

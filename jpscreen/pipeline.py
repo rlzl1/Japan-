@@ -32,40 +32,73 @@ def load_mine(path: str | Path) -> dict:
 # ---------------------------------------------------------------- EDINET refresh (needs a key)
 
 def refresh_edinet(ctx: Context, edinet: Edinet, months: int = 15, limit: Optional[int] = None,
-                   codes: Optional[set] = None, log_=print) -> int:
+                   codes: Optional[set] = None, priority: Optional[list] = None, workers: int = 5,
+                   skip_fresh_days: int = 0, since: Optional[dt.date] = None, log_=print) -> int:
+    """Annual + latest interim report for each listed company, parsed into the fundamentals store.
+
+    Packages are downloaded and parsed in parallel (not cached on disk); `priority` codes go first.
+    """
     if not edinet.enabled:
         log_("EDINET_API_KEY not set: skipping the EDINET refresh (value screen uses stored/harvested data)")
         return 0
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from .http import Http
     end = today_jst()
-    start = end - dt.timedelta(days=int(months * 30.5))
+    start = since or (end - dt.timedelta(days=int(months * 30.5)))
     latest = edinet.latest_reports(start, end)
     log_(f"EDINET: latest reports for {len(latest)} filers")
-    n = 0
-    for comp in ctx.universe:
-        if codes and comp.code not in codes:
+    order = list(priority or []) + [c.code for c in ctx.universe]
+    prio_set = set(priority or [])
+    seen, jobs = set(), []
+    for code in order:
+        if code in seen:
+            continue
+        seen.add(code)
+        comp = ctx.universe.get(code)
+        if comp is None or (codes and code not in codes):
             continue
         rep = latest.get(comp.edinet_code)
         if not rep:
             continue
         for kind in ("annual", "interim"):
             fl = rep.get(kind)
-            if not fl:
+            if not fl or (kind == "interim" and rep.get("annual") and fl.submitted < rep["annual"].submitted):
                 continue
-            if kind == "interim" and rep.get("annual") and fl.submitted < rep["annual"].submitted:
+            if skip_fresh_days and ctx.store.has_source(code, f"edinet:{fl.doc_id}"):
                 continue
-            fs = edinet.facts(fl.doc_id)
-            if not fs:
-                continue
-            f = from_facts(fs, comp.code, f"edinet:{fl.doc_id}", annual=(kind == "annual"))
-            ctx.store.put_fundamentals(comp.code, f, fl.submitted.date(), annual=(kind == "annual"))
-        n += 1
-        if n % 100 == 0:
-            ctx.store.save()
-            log_(f"  {n} companies refreshed")
-        if limit and n >= limit:
+            jobs.append((code, kind, fl))
+        if limit and len({j[0] for j in jobs}) >= limit:
             break
+    # annual reports for everyone first (notes, holders, history), fresher interim balance sheets after
+    jobs.sort(key=lambda j: (j[1] != "annual", order.index(j[0]) if j[0] in prio_set else len(order)))
+    log_(f"EDINET: {len(jobs)} reports to read for {len({j[0] for j in jobs})} companies")
+    h0 = edinet.http
+
+    def work(job):
+        code, kind, fl = job
+        ed = Edinet(Http(cache_dir=h0.cache_dir, min_interval=0.5), key=edinet.key)
+        fs = ed.facts(fl.doc_id)
+        if not fs:
+            return job, None
+        try:
+            return job, from_facts(fs, code, f"edinet:{fl.doc_id}", annual=(kind == "annual"))
+        except Exception as e:  # one malformed report must not stop the run
+            log.info("parse %s: %s", fl.doc_id, e)
+            return job, None
+
+    done = 0
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = [ex.submit(work, j) for j in jobs]
+        for fut in as_completed(futs):
+            (code, kind, fl), f = fut.result()
+            if f is not None:
+                ctx.store.put_fundamentals(code, f, fl.submitted.date(), annual=(kind == "annual"))
+            done += 1
+            if done % 200 == 0:
+                ctx.store.save()
+                log_(f"  {done}/{len(jobs)} reports read")
     ctx.store.save()
-    return n
+    return done
 
 
 def edinet_holdings(ctx: Context, edinet: Edinet, start: dt.date, end: dt.date, log_=print) -> list[dict]:
@@ -95,24 +128,24 @@ def edinet_holdings(ctx: Context, edinet: Edinet, start: dt.date, end: dt.date, 
 # ---------------------------------------------------------------- value screen
 
 def value_screen(ctx: Context, reference: Optional[str], crit: dict = CRITERIA, price_all: bool = True,
-                 log_=print) -> dict:
+                 extra_codes: Optional[set] = None, log_=print) -> dict:
+    """Two passes: every company on bulk prices (no trading history), then full quotes for the candidates."""
     rows: dict[str, ValueRow] = {}
     stored = set(ctx.store.fundamentals_codes())
     ref_rows = {norm_code(r["code"]): r for r in (load_reference(reference) if reference else [])}
-    wanted = set(stored) | set(ref_rows) | set(ctx.mine)
+    wanted = set(stored) | set(ref_rows) | set(ctx.mine) | set(extra_codes or ())
     financial = {c.code for c in ctx.universe if c.financial}
+    n_bulk = ctx.prices.load_bulk(ctx.tdnet.http) if price_all else 0
     log_(f"value screen over {len(wanted)} companies ({len(stored)} with stored fundamentals, "
-         f"{len(ref_rows)} reference rows, {len(ctx.mine)} on your watchlist)")
-    ctx.prices.prefetch({c: ctx.universe.get(c).yahoo_symbols for c in wanted
-                         if ctx.universe.get(c) and (price_all or c in ref_rows or c in ctx.mine)})
-    for i, code in enumerate(sorted(wanted)):
+         f"{len(ref_rows)} reference rows, {len(ctx.mine)} on your watchlist; {n_bulk} bulk prices)")
+
+    def row_for(code):
         comp = ctx.universe.get(code)
         if comp is None:
-            continue
+            return None
         f = ctx.store.fundamentals(code)
         has_notes = bool(f and f.rental_note)
-        need_price = price_all or code in ref_rows or code in ctx.mine
-        q = ctx.prices.get(code, comp.yahoo_symbols, refresh=False) if need_price else None
+        q = ctx.prices.quotes.get(code)
         if code in ref_rows and not has_notes:
             r = reference_row(ref_rows[code], q)
             r.sector = comp.sector
@@ -126,15 +159,29 @@ def value_screen(ctx: Context, reference: Optional[str], crit: dict = CRITERIA, 
             r.pb = q.pbr
         if q and r.pe is None and q.per:
             r.pe = q.per
-        rows[code] = r
-        if (i + 1) % 200 == 0:
-            ctx.prices.save()
-            log_(f"  priced {i + 1}")
+        return r
+
+    for code in wanted:
+        r = row_for(code)
+        if r is not None:
+            rows[code] = r
+    # candidates: anything near a list threshold, plus the names that must always be tracked
+    near = {c for c, r in rows.items() if (r.re_index is not None and r.re_index < 1.2) or (r.ncav_mcap or 0) >= 0.8
+            or (r.am_mcap or 0) >= 0.5 or ((r.pe or 99) <= 7 and (r.pb or 9) <= 0.7) or (r.treasury_pct or 0) >= 10
+            or ((r.top_holder_pct or 0) >= 50 and (r.pb or 9) <= 1.1)}
+    must = set(ref_rows) | set(ctx.mine) | set(extra_codes or ())
+    cand = (near | must) - financial
+    log_(f"  full quotes (with trading history) for {len(cand)} candidates")
+    ctx.prices.prefetch({c: ctx.universe.get(c).yahoo_symbols for c in cand if ctx.universe.get(c)})
+    for code in cand:
+        r = row_for(code)
+        if r is not None:
+            rows[code] = r
     ctx.prices.save()
     lists = build_lists(rows.values(), crit, financial)
     meta = dict(date=dt.datetime.now(JST).date().isoformat(), price_date=ctx.prices.asof, universe=len(ctx.universe),
                 screened=len(rows), with_fundamentals=len(stored), reference=Path(reference).name if reference else None,
-                edinet=any((r.source or "").startswith("edinet") for r in rows.values()))
+                edinet=sum(1 for r in rows.values() if (r.source or "").startswith("edinet")))
     return dict(rows=rows, lists=lists, meta=meta)
 
 

@@ -209,6 +209,51 @@ table.t tr.mine td.nm b { color: var(--key); }
 .st.ok { color: var(--pos); border: 1px solid #1f5a39; }
 .st.miss { color: var(--neg); border: 1px solid #4a1d1a; }
 
+/* ---- portfolio */
+.refresh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--font-data); font-size: 0.74rem; }
+.key-btn { background: var(--key); color: var(--key-ink); border: 0; font-family: var(--font-data); font-weight: 600; font-size: 0.78rem;
+  padding: 5px 12px; cursor: pointer; letter-spacing: 0.04em; }
+.key-btn:disabled { opacity: 0.5; cursor: default; }
+.totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.totals div { background: var(--panel); padding: 7px 10px; display: grid; gap: 1px; }
+.totals span { font-family: var(--font-data); font-size: 0.64rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.05em; }
+.totals b { font-family: var(--font-data); font-weight: 500; font-size: 1.02rem; font-variant-numeric: tabular-nums; }
+.addbar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: end; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); }
+.addbar label { display: grid; gap: 2px; font-family: var(--font-data); font-size: 0.64rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.05em; }
+.addbar label.grow { flex: 1 1 12rem; }
+.addbar input, .addbar select { background: #000; border: 1px solid var(--line-hi); color: var(--ink); padding: 5px 7px; font-family: var(--font-data);
+  font-size: 0.84rem; width: 7.5rem; max-width: 100%; text-transform: none; letter-spacing: 0; }
+.addbar label.grow input { width: 100%; }
+.addbar #add-code { width: 5.2rem; color: var(--key); text-transform: uppercase; }
+.add-msg { font-family: var(--font-data); font-size: 0.74rem; color: var(--muted); flex-basis: 100%; }
+.add-msg.err { color: var(--neg); } .add-msg.ok { color: var(--pos); }
+.port-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+#port-t td.nm { max-width: 13rem; }
+#port-t td.wrapcell { min-width: 14rem; max-width: 22rem; }
+.feed-col { border: 1px solid var(--line); background: var(--panel); display: grid; min-width: 0; }
+.feed-h { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid var(--line);
+  font-family: var(--font-data); font-size: 0.76rem; }
+.feed-h b { color: var(--amber); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.feed { list-style: none; margin: 0; padding: 0; max-height: 78vh; overflow-y: auto; }
+.feed li { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.feed li:last-child { border-bottom: 0; }
+.feed .fd { font-family: var(--font-data); font-size: 0.72rem; color: var(--muted); }
+.feed .fb { display: grid; gap: 2px; min-width: 0; }
+.feed .ft { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.feed .fco { background: none; border: 0; padding: 0; color: var(--key); font-family: var(--font-data); font-size: 0.74rem; cursor: pointer; }
+.feed .fen { font-size: 0.84rem; overflow-wrap: anywhere; }
+.feed .fja { font-size: 0.72rem; color: var(--muted); overflow-wrap: anywhere; }
+.feed .fsum { font-size: 0.76rem; color: #cfd3d6; }
+.new-tag { font-family: var(--font-data); font-size: 0.64rem; font-weight: 600; background: var(--neg); color: #000; padding: 0 4px; }
+.pend-tag { font-family: var(--font-data); font-size: 0.64rem; border: 1px dashed var(--key); color: var(--key); padding: 0 4px; }
+.meter { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr) 4.5rem; gap: 8px; align-items: center; font-family: var(--font-data); font-size: 0.74rem; }
+.meter .bar2 { height: 8px; background: var(--raise); border: 1px solid var(--line-hi); position: relative; }
+.meter .bar2 i { position: absolute; inset: 0 auto 0 0; background: var(--amber); }
+.meter .bar2 i.r { background: var(--neg); }
+.rate-line { font-family: var(--font-data); font-size: 0.7rem; color: var(--muted); }
+.rate-line b { color: var(--ink); font-weight: 500; }
+.edit-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
 /* ---- empty */
 .empty { border: 1px dashed var(--line-hi); padding: 16px; display: grid; gap: 6px; background: var(--panel); }
 .empty h3 { margin: 0; font-family: var(--font-data); font-size: 0.82rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.06em; }
@@ -245,7 +290,8 @@ table.t tr.mine td.nm b { color: var(--key); }
 .des .links { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--font-data); font-size: 0.76rem; }
 
 @media (max-width: 860px) {
-  .desk { grid-template-columns: minmax(0, 1fr); }
+  .desk, .port-grid { grid-template-columns: minmax(0, 1fr); }
+  .feed { max-height: none; }
   .rail { position: static; display: flex; gap: 4px; overflow-x: auto; padding: 6px; }
   .rail-group { display: contents; }
   .rail-group h3 { display: none; }
@@ -278,11 +324,12 @@ table.t tr.mine td.nm b { color: var(--key); }
 
   <nav class="fkeys" role="tablist" aria-label="Functions">
     <button class="fk" role="tab" data-v="radar" aria-selected="true"><i>1</i>RADAR <span class="n" id="n-radar"></span></button>
-    <button class="fk" role="tab" data-v="cheap" aria-selected="false"><i>2</i>CHEAP <span class="n" id="n-cheap"></span></button>
-    <button class="fk" role="tab" data-v="value" aria-selected="false"><i>3</i>VALUE</button>
-    <button class="fk" role="tab" data-v="pre" aria-selected="false"><i>4</i>PRE-DEAL <span class="n" id="n-pre"></span></button>
-    <button class="fk" role="tab" data-v="mine" aria-selected="false"><i>5</i>MY LIST <span class="n" id="n-mine"></span></button>
-    <button class="fk" role="tab" data-v="help" aria-selected="false"><i>6</i>HELP</button>
+    <button class="fk" role="tab" data-v="port" aria-selected="false"><i>2</i>PORT <span class="n" id="n-port"></span></button>
+    <button class="fk" role="tab" data-v="cheap" aria-selected="false"><i>3</i>CHEAP <span class="n" id="n-cheap"></span></button>
+    <button class="fk" role="tab" data-v="value" aria-selected="false"><i>4</i>VALUE</button>
+    <button class="fk" role="tab" data-v="pre" aria-selected="false"><i>5</i>PRE-DEAL <span class="n" id="n-pre"></span></button>
+    <button class="fk" role="tab" data-v="mine" aria-selected="false"><i>6</i>COVERAGE <span class="n" id="n-mine"></span></button>
+    <button class="fk" role="tab" data-v="help" aria-selected="false"><i>7</i>HELP</button>
   </nav>
 
   <div class="tape" aria-label="Status">
@@ -322,6 +369,42 @@ table.t tr.mine td.nm b { color: var(--key); }
         <div class="empty"><h3>Waiting for the first scan</h3><p>Each weekday's scan posts here: every TDnet disclosure sorted into its category and rated, with the numbers behind the rating and a link to the PDF.</p></div>
       </main>
     </div>
+  </section>
+
+  <!-- ===================== PORT ===================== -->
+  <section class="pane" id="port" hidden>
+    <div class="ph"><h2>Portfolio<small id="port-sub">your holdings, rated on the radar's system, with every filing and story</small></h2>
+      <div class="refresh"><button type="button" class="key-btn" id="refresh-btn">REFRESH</button><span id="refresh-st" class="mut"></span></div></div>
+    <div class="totals" id="port-totals"></div>
+    <form class="addbar" id="add-form" autocomplete="off">
+      <label for="add-code">Code<input id="add-code" maxlength="4" placeholder="4624" spellcheck="false" required></label>
+      <label for="add-group">Status<select id="add-group"><option value="held">Held</option><option value="watch">Watching</option></select></label>
+      <label for="add-shares">Shares<input id="add-shares" inputmode="numeric" placeholder="1000"></label>
+      <label for="add-cost">Avg cost ¥<input id="add-cost" inputmode="decimal" placeholder="3500"></label>
+      <label for="add-note" class="grow">Note<input id="add-note" maxlength="200" placeholder="Why you own it"></label>
+      <button type="submit" class="key-btn">ADD / UPDATE</button>
+      <span class="add-msg" id="add-msg" aria-live="polite"></span>
+    </form>
+    <div class="controls">
+      <div class="ctl"><span>Show</span>
+        <div class="seg" id="seg-pgroup" role="group" aria-label="Holdings shown">
+          <button type="button" data-v="all">All</button><button type="button" data-v="held">Held</button><button type="button" data-v="watch">Watching</button>
+        </div>
+      </div>
+    </div>
+    <div class="port-grid">
+      <div class="table-wrap"><table class="t" id="port-t"></table></div>
+      <section class="feed-col" aria-label="Filings and news">
+        <div class="feed-h"><b id="feed-title">Filings &amp; news · every holding</b>
+          <div class="seg" id="seg-pkind" role="group" aria-label="Feed filter">
+            <button type="button" data-v="all">All</button><button type="button" data-v="filing">Filings</button><button type="button" data-v="news">News</button>
+          </div>
+          <button type="button" class="des-x" id="feed-all" hidden>ALL ✕</button>
+        </div>
+        <ul class="feed" id="feed"></ul>
+      </section>
+    </div>
+    <p class="foot">Stars use the radar's system: 1 + edge + value − risk. Edge is the strongest catalyst, either a radar event on the company in the last 120 days (half weight after 60) or a standing one (an activist on the register, buybacks or a value-up plan in the last year, listing-criteria pressure, a strategic review, a 5%+ yield, a high pre-deal score). Without one, cheapness alone stops at two stars. Value is the single best test, including the RE net-net index. Risk is thin trading or recent distress. Filings come from TDnet and EDINET (PDFs kept on Kabutan's permanent archive), news from Kabutan and the press. English titles are machine translations made at each refresh: open the original before acting.</p>
   </section>
 
   <!-- ===================== CHEAP ===================== -->
@@ -391,7 +474,7 @@ table.t tr.mine td.nm b { color: var(--key); }
         <dt><span class="stars"><i class="on">★</i><i class="on">★</i><i>★</i><i>★</i><i>★</i></span></dt><dd>For the record: routine, small, or the company fails the profit and debt filters.</dd>
         <dt><span class="stars"><i class="on">★</i><i>★</i><i>★</i><i>★</i><i>★</i></span></dt><dd>Usually bad for minority shareholders, or untradeable.</dd>
       </dl>
-      <p>Same rules as the Korea Filing Radar. Each category starts from a base and moves with the size of the edge: spread to the bid (≥10% +2, ≥5% +1, none −1), going private +1, a bid already raised +½, a self-tender −½; buybacks worth ≥5% of market cap +1½, ≥2% +1, off-market ToSTNeT blocks −½; dividends at ≥7% yield +1½. A stock on a value list gains a star; otherwise an RE net-net index under 0.8, net cash ≥ 0.5× market cap or a P/E ≤ 8 add ½. Losses or debt above equity cost ½ star; thin trading costs ½ (under ¥15M a day) or 1½ (under ¥3M); exchange designations (監理・特別注意) cost a star. Companies that fail the profit and debt filters are capped at two stars, except special situations, which are priced on deal terms. Bases come from the Korean 12-month backtest until the Japanese backtest replaces them. Every rating lists its reasons.</p>
+      <p>Same system as the Korea Filing Radar: <b>1 + edge + value − risk</b> (5★ at 4.75+, 4★ 3.75+, 3★ 2.75+, 2★ 1.75+). <b>Edge</b> is what the event is worth on its own numbers: the spread to a going-private bid (10%+ → 4, 5%+ → 3, 2%+ → 2), the exchange ratio against the market, a buyback as a share of market cap (5%+ → 2.5), the after-tax gain on a property sale against market cap, a special committee or a proposal received, listing-criteria pressure on a cheap stock. <b>Value</b> is the single best of the classic tests (0–2): cash + securities − all liabilities against market cap, net current assets, the RE net-net index (≤0.5 → 2), P/E with free-cash-flow yield, P/B ≤ 0.5 with profits every year. Workouts (bids, squeeze-outs, share exchanges, liquidations) are priced on the deal, so value is shown but not counted; for everything else value counts only up to the edge plus one, so cheapness alone stops at two stars. <b>Risk</b>: thin trading (−½ under ¥15M a day, −1½ under ¥3M, −2 when untraded), exchange designations (−1), losses or debt on special situations (−½). Companies failing the profit and debt filters are capped at two stars. Every rating lists its reasons.</p>
     </section>
     <section class="g-special">
       <h3>Special situations</h3>
@@ -542,7 +625,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     for (let i = 1; i <= 5; i++) s.append(el("i", i <= n ? "on" : null, "★"));
     return s;
   }
-  const SAFE = /^https:\/\/(www\.release\.tdnet\.info|disclosure2\.edinet-fsa\.go\.jp|finance\.yahoo\.co\.jp|irbank\.net|kabutan\.jp)\//;
+  const SAFE = /^https:\/\/(www\.release\.tdnet\.info|disclosure2\.edinet-fsa\.go\.jp|finance\.yahoo\.co\.jp|irbank\.net|kabutan\.jp|s\.kabutan\.jp|tdnet-pdf\.kabutan\.jp|news\.google\.com)\//;
   function link(url, text) {
     if (!url || !SAFE.test(url)) return null;
     const a = el("a", null, text);
@@ -724,6 +807,12 @@ table.t tr.mine td.nm b { color: var(--key); }
     (h.watch || []).forEach((w) => top.append(el("span", "wtag", w)));
     top.append(el("span", "date", fmtDate(h._date) + (h.time ? " " + h.time : "")));
     main.append(top, el("div", "headline", h.headline));
+    if (h.rating) {
+      const r = h.rating, rl = el("div", "rate-line");
+      rl.append(document.createTextNode("EDGE "), el("b", null, f1(r.edge)), document.createTextNode(" · VALUE "), el("b", null, f1(r.value_used) + (r.value_used !== r.value ? " of " + f1(r.value) : "")),
+        document.createTextNode(" · RISK "), el("b", null, r.risk ? "−" + f1(r.risk) : "0"), document.createTextNode(" → " + f2(r.total) + (r.workout ? " · workout: priced on the deal" : "")));
+      main.append(rl);
+    }
     if (h.title) main.append(el("div", "jp", h.title));
     const m = el("div", "metrics");
     const km = keyMetric(h);
@@ -988,6 +1077,248 @@ table.t tr.mine td.nm b { color: var(--key); }
     t.append(tb);
   }
 
+  // ---------------------------------------------------------------- PORT
+  let port = null, portDocs = {}, uni = {}, positions = {}, cfg = null, mcp = null, dbRef = null;
+  let portGroup = store.get("jr-pgroup", "all"), portKind = "all", portSel = null;
+  let pSort = { key: "stars", dir: -1 };
+  const PCAT = { results: "Results", dividend: "Dividend", buyback: "Buyback", shareholders: "Holders", governance: "Governance",
+    corporate: "Corporate", filing: "Filing", news: "News" };
+  const portBy = () => new Map(((port && port.holdings) || []).map((h) => [h.code, h]));
+  const isNewItem = (it) => !it.seeded && it.first && port && port.generated_at && it.first >= port.generated_at;
+  const pctS = (v, d = 1) => (num(v) ? (v >= 0 ? "+" : "") + (v * 100).toFixed(d) + "%" : "—");
+  const yenInt = (v) => (num(v) ? (v < 0 ? "−¥" : "¥") + Math.abs(Math.round(v)).toLocaleString("en-US") : "—");
+  function holdingsMerged() {
+    const H = ((port && port.holdings) || []).map((h) => Object.assign({}, h));
+    const by = new Map(H.map((h) => [h.code, h]));
+    Object.values(positions).forEach((p) => {
+      const h = by.get(p.code);
+      const px = num((uni[p.code] || [])[2]) ? uni[p.code][2] : null;
+      if (h) {   // shares or cost edited on this page since the last refresh
+        if (num(p.shares)) h.shares = p.shares;
+        if (num(p.cost)) h.cost = p.cost;
+        if (p.group) h.group = p.group;
+        const price = (h.snap || {}).price || px;
+        if (num(h.shares) && num(price)) h.value = h.shares * price;
+        if (num(h.cost) && num(price)) { h.pnl_pct = price / h.cost - 1; if (num(h.shares)) h.pnl = (price - h.cost) * h.shares; }
+        return;
+      }
+      const u = uni[p.code] || [];
+      const n = { code: p.code, name: u[0] || "", market: u[1] || "", group: p.group || "held", pending: true, shares: p.shares, cost: p.cost,
+        note: p.note, stars: null, rating: null, snap: { price: px }, new: 0 };
+      if (num(p.shares) && num(px)) n.value = p.shares * px;
+      if (num(p.cost) && num(px)) { n.pnl_pct = px / p.cost - 1; if (num(p.shares)) n.pnl = (px - p.cost) * p.shares; }
+      H.push(n); by.set(p.code, n);
+    });
+    const tot = H.filter((h) => h.group === "held").reduce((a, h) => a + (num(h.value) ? h.value : 0), 0);
+    H.forEach((h) => { h.weight = tot && num(h.value) && h.group === "held" ? h.value / tot : null; });
+    return H;
+  }
+  const PCOLS = [
+    { key: "stars", label: "★", val: (h) => (h.rating ? h.rating.total : -1), fmt: (h) => (h.stars ? starsEl(h.stars) : el("span", "pend-tag", "NEXT REFRESH")) },
+    { key: "code", label: "Code", cls: "l", val: (h) => h.code, fmt: (h) => codeBtn(h.code) },
+    { key: "name", label: "Company", cls: "nm", val: (h) => h.name, fmt: (h) => { const x = el("span"); x.append(el("b", null, h.name || "—")); if (h.en) x.title = h.en; return x; } },
+    { key: "group", label: "Status", cls: "l", val: (h) => h.group, fmt: (h) => el("span", "tag", h.group === "held" ? "HELD" : "WATCH") },
+    { key: "price", label: "Last", val: (h) => (h.snap || {}).price, fmt: (h) => (num((h.snap || {}).price) ? "¥" + h.snap.price.toLocaleString("en-US") : "—") },
+    { key: "chg", label: "1D", val: (h) => (h.snap || {}).chg_1d, fmt: (h) => pctS((h.snap || {}).chg_1d), tone: (h) => signCls((h.snap || {}).chg_1d) },
+    { key: "value", label: "Value", val: (h) => h.value, fmt: (h) => yen(h.value) },
+    { key: "weight", label: "Wt", val: (h) => h.weight, fmt: (h) => (num(h.weight) ? (h.weight * 100).toFixed(1) + "%" : "—") },
+    { key: "pnl", label: "P&L", val: (h) => h.pnl_pct, fmt: (h) => pctS(h.pnl_pct), tone: (h) => signCls(h.pnl_pct) },
+    { key: "why", label: "Catalyst", cls: "wrapcell", val: (h) => ((h.rating || {}).why || [""])[0], fmt: (h) => ((h.rating || {}).why || [h.pending ? "researched on the next refresh" : ""])[0] },
+    { key: "re", label: "RE idx", val: (h) => (h.snap || {}).re_index, fmt: (h) => f2((h.snap || {}).re_index) },
+    { key: "pe", label: "P/E", val: (h) => (h.snap || {}).pe, fmt: (h) => f1((h.snap || {}).pe) },
+    { key: "pb", label: "P/B", val: (h) => (h.snap || {}).pb, fmt: (h) => f2((h.snap || {}).pb) },
+    { key: "yld", label: "Yld", val: (h) => (h.snap || {}).div_yield, fmt: (h) => (num((h.snap || {}).div_yield) ? (h.snap.div_yield * 100).toFixed(1) + "%" : "—") },
+    { key: "new", label: "New", val: (h) => h.new || 0, fmt: (h) => (h.new ? el("span", "new-tag", String(h.new)) : "—") },
+  ];
+  function renderTotals(H) {
+    const t = $("port-totals"); t.replaceChildren();
+    const held = H.filter((h) => h.group === "held");
+    const val = held.reduce((a, h) => a + (num(h.value) ? h.value : 0), 0);
+    const cost = held.reduce((a, h) => a + (num(h.cost) && num(h.shares) ? h.cost * h.shares : 0), 0);
+    const day = held.reduce((a, h) => a + (num(h.day_pnl) ? h.day_pnl : 0), 0);
+    const nNew = H.reduce((a, h) => a + (h.new || 0), 0);
+    const add = (k, v, cls) => { const d = el("div"); d.append(el("span", null, k), el("b", cls || null, v)); t.append(d); };
+    add("Holdings", held.length + " held · " + (H.length - held.length) + " watching");
+    add("Market value", val ? yen(val) : "add shares");
+    add("Cost", cost ? yen(cost) : "add avg cost");
+    add("P&L", cost && val ? yenInt(val - cost) + " " + pctS(val / cost - 1) : "—", cost && val ? signCls(val - cost) : null);
+    add("Day", day ? yenInt(day) : "—", signCls(day));
+    add("New items", String(nNew), nNew ? "amb" : null);
+    add("Prices", (port && port.price_date) || "—");
+  }
+  function renderPort() {
+    const H = holdingsMerged();
+    $("n-port").textContent = H.length ? String(H.length) : "";
+    renderTotals(H);
+    $("port-sub").textContent = port ? "refreshed " + (port.generated_at || "").replace("T", " ").slice(0, 16) + " JST · " + H.length + " companies" : "Waiting for the first portfolio refresh";
+    const t = $("port-t"); t.replaceChildren();
+    const rows = H.filter((h) => portGroup === "all" || (portGroup === "held" ? h.group === "held" : h.group !== "held"));
+    const thead = el("thead"), hr = el("tr");
+    PCOLS.forEach((c) => {
+      const th = el("th", (c.cls === "l" || c.cls === "nm" || c.cls === "wrapcell" ? "l " : "") + "sortable", c.label); th.scope = "col";
+      if (pSort.key === c.key) th.setAttribute("aria-sort", pSort.dir > 0 ? "ascending" : "descending");
+      th.addEventListener("click", () => { pSort = { key: c.key, dir: pSort.key === c.key ? -pSort.dir : (["code", "name", "group"].includes(c.key) ? 1 : -1) }; renderPort(); });
+      hr.append(th);
+    });
+    thead.append(hr); t.append(thead);
+    const col = PCOLS.find((c) => c.key === pSort.key) || PCOLS[0];
+    rows.sort((a, b) => { const va = col.val(a), vb = col.val(b); if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1;
+      return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * pSort.dir; });
+    const tb = el("tbody");
+    if (!rows.length) { const tr = el("tr"), td = el("td", "l mut", port ? "Nothing here. Add a code above." : "Your holdings from the Tokyo Filings Tracker load here at the next refresh. Add any code above."); td.colSpan = PCOLS.length; tr.append(td); tb.append(tr); }
+    rows.forEach((h) => {
+      const tr = el("tr", portSel === h.code ? "mine" : null);
+      tr.style.cursor = "pointer";
+      PCOLS.forEach((c) => { const td = el("td", c.cls || null); const v = c.fmt(h); if (v instanceof Node) td.append(v); else td.textContent = v == null ? "—" : String(v);
+        if (c.tone) { const k = c.tone(h); if (k) td.classList.add(k); } tr.append(td); });
+      tr.addEventListener("click", () => { portSel = h.code; renderPort(); });
+      tb.append(tr);
+    });
+    t.append(tb);
+    renderFeed();
+  }
+  function feedItem(it, showCo) {
+    const li = el("li");
+    li.append(el("span", "fd", it.date ? it.date.slice(5) : "—"));
+    const b = el("div", "fb"), top = el("div", "ft");
+    if (showCo) { const c = el("button", "fco", it.code + " " + ((portBy().get(it.code) || {}).name || "")); c.type = "button"; c.addEventListener("click", () => { portSel = it.code; renderPort(); }); top.append(c); }
+    const tg = el("span", "tag", it.kind === "news" ? (it.src || "News").slice(0, 16) : (PCAT[it.cat] || "Filing") + (it.src && /EDINET/.test(it.src) ? " · EDINET" : ""));
+    top.append(tg);
+    if (isNewItem(it)) top.append(el("span", "new-tag", "NEW"));
+    b.append(top);
+    const en = el("div", "fen"); const a = link(it.url, it.en || it.ja || "—") || (/^https:\/\//.test(it.url || "") ? Object.assign(el("a", null, it.en || it.ja || "—"), { href: it.url, target: "_blank", rel: "noopener" }) : null);
+    if (a) en.append(a); else en.textContent = it.en || it.ja || "—";
+    b.append(en);
+    if (it.en && it.ja) b.append(el("div", "fja", it.ja));
+    if (it.sum) b.append(el("div", "fsum", it.sum));
+    li.append(b);
+    return li;
+  }
+  function renderFeed() {
+    const ph = portSel ? holdingsMerged().find((h) => h.code === portSel) : null;
+    $("feed-title").textContent = ph ? "Filings & news · " + ph.code + " " + (ph.name || "") : "Filings & news · every holding";
+    $("feed-all").hidden = !ph;
+    let list = ph ? ((portDocs[ph.code] || {}).items || []).map((it) => Object.assign({ code: ph.code }, it)) : ((port && port.feed) || []);
+    if (portKind !== "all") list = list.filter((it) => (portKind === "news" ? it.kind === "news" : it.kind !== "news"));
+    const ul = $("feed"); ul.replaceChildren();
+    list.slice(0, 150).forEach((it) => ul.append(feedItem(it, !ph)));
+    if (!list.length) { const li = el("li"); li.append(el("span", "fd", ""), el("div", "fsum", ph && ph.pending ? "Filings and news arrive with the next refresh." : "Nothing on file for this filter.")); ul.append(li); }
+  }
+  $("feed-all").addEventListener("click", () => { portSel = null; renderPort(); });
+
+  // ---- add / update / remove positions (stored in this page's database; the refresh researches them)
+  function setAddMsg(t, cls) { const m = $("add-msg"); m.textContent = t; m.className = "add-msg" + (cls ? " " + cls : ""); }
+  const numIn = (id) => { const v = ($(id).value || "").replace(/[,\s¥]/g, ""); if (!v) return null; const n = Number(v); return isFinite(n) && n >= 0 ? n : NaN; };
+  async function savePosition(code, data) {
+    if (!dbRef) { setAddMsg("Saving needs this page open in Claude.", "err"); return false; }
+    try {
+      await dbRef.doc("positions/" + code).set(Object.assign({ code, added: new Date().toISOString() }, positions[code] || {}, data, { updated: new Date().toISOString() }));
+      return true;
+    } catch (e) { setAddMsg("Couldn't save " + code + " (" + ((e && e.code) || "error") + ").", "err"); return false; }
+  }
+  $("add-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const code = ($("add-code").value || "").trim().toUpperCase();
+    if (!/^\d[0-9A-Z]{3}$/.test(code)) { setAddMsg("Enter a 4-character TSE code, like 4624 or 130A.", "err"); return; }
+    const shares = numIn("add-shares"), cost = numIn("add-cost");
+    if (Number.isNaN(shares) || Number.isNaN(cost)) { setAddMsg("Shares and cost must be numbers.", "err"); return; }
+    const data = { group: $("add-group").value };
+    if (shares != null) data.shares = shares;
+    if (cost != null) data.cost = cost;
+    const note = ($("add-note").value || "").trim(); if (note) data.note = note;
+    const known = uni[code];
+    if (await savePosition(code, data)) {
+      ["add-code", "add-shares", "add-cost", "add-note"].forEach((id) => { $(id).value = ""; });
+      const inPort = portBy().has(code);
+      setAddMsg((inPort ? "Updated " : "Added ") + code + (known ? " " + known[0] : "") + (inPort ? "." : ". Tap REFRESH to research it now, or it fills in at the next scheduled refresh."), "ok");
+      portSel = code; renderPort();
+    }
+  });
+  async function removePosition(code) {
+    if (!dbRef) return;
+    try { await dbRef.doc("positions/" + code).delete(); setAddMsg("Removed " + code + " from this page's positions.", "ok"); }
+    catch (e) { setAddMsg("Couldn't remove " + code + " (" + ((e && e.code) || "error") + ").", "err"); }
+  }
+
+  // ---- refresh now: fires the scheduled refresh task (needs the page open in Claude)
+  function refreshRunning() {
+    if (!cfg || (cfg.state !== "running" && cfg.state !== "queued")) return false;
+    const t = Date.parse(cfg.startedAt || cfg.requestedAt || "");
+    return isFinite(t) && Date.now() - t < 60 * 60e3;
+  }
+  function renderRefresh(note) {
+    const b = $("refresh-btn"), st = $("refresh-st");
+    const busy = refreshRunning();
+    b.disabled = busy || !dbRef;
+    b.textContent = busy ? "REFRESHING…" : "REFRESH";
+    st.textContent = note || (busy ? "Running since " + (cfg.startedAt || cfg.requestedAt || "").slice(11, 16) + " UTC: scan, portfolio and translations, usually 10–20 min."
+      : cfg ? "Last refresh " + ((cfg.lastRunAt || "").replace("T", " ").slice(0, 16) || "never") + " UTC" + (cfg.lastSummary ? " · " + cfg.lastSummary : "") + (cfg.schedule ? " · " + cfg.schedule : "")
+      : "Refresh task not set up yet.");
+  }
+  const FIRE_ERR = { approval_required: "Allow the refresh when asked, then tap REFRESH again.", not_in_manifest: "Refreshing isn't allowed for this page: allow it in the page's Permissions menu.",
+    not_granted: "Refreshing isn't available in this view. Open the page in Claude.", server_not_connected: "The scheduled-task service isn't reachable here. Ask Claude in chat to refresh the radar." };
+  $("refresh-btn").addEventListener("click", async () => {
+    if (refreshRunning()) return;
+    if (!mcp) { renderRefresh("One-tap refresh works when the page is open in Claude. Ask Claude in chat to refresh the radar instead."); return; }
+    if (!cfg || !cfg.triggerId) { renderRefresh("The refresh task isn't set up yet."); return; }
+    $("refresh-btn").disabled = true;
+    const before = cfg.state || "done";
+    try { await dbRef.doc("config/refresh").update({ state: "queued", requestedAt: new Date().toISOString() }); } catch (e) {}
+    try {
+      await mcp.callTool("Claude Code Remote", "fire_trigger", { trigger_id: cfg.triggerId, text: "Requested from the Japan Filing Radar page (REFRESH button)." }, { cache: false });
+      renderRefresh("Started. You can close the page; results appear here when the refresh finishes.");
+    } catch (e) {
+      const code = (e && e.code) || "upstream_error";
+      renderRefresh(FIRE_ERR[code] || "The refresh may not have started (" + code + "). Try again in a few minutes.");
+      if (code !== "server_unavailable" && code !== "upstream_error") { try { await dbRef.doc("config/refresh").update({ state: before }); } catch (_) {} }
+    }
+  });
+  setInterval(() => { if (cfg) renderRefresh(); }, 60e3);
+
+  function positionBlock(code) {
+    const h = holdingsMerged().find((x) => x.code === code);
+    if (!h) return null;
+    const box = el("div"); box.style.display = "grid"; box.style.gap = "8px";
+    box.append(el("h4", null, "Your position · " + (h.group === "held" ? "held" : "watching") + (h.pending ? " · researched at the next refresh" : "")));
+    const kv = el("div", "kv");
+    const add = (k, v, cls) => { const c = el("div"); c.append(el("span", null, k), el("b", cls || null, v)); kv.append(c); };
+    add("Shares", num(h.shares) ? h.shares.toLocaleString("en-US") : "—");
+    add("Avg cost", num(h.cost) ? "¥" + h.cost.toLocaleString("en-US") : "—");
+    add("Value", yen(h.value));
+    add("P&L", num(h.pnl) ? yenInt(h.pnl) + " " + pctS(h.pnl_pct) : pctS(h.pnl_pct), signCls(h.pnl_pct));
+    add("Weight", num(h.weight) ? (h.weight * 100).toFixed(1) + "%" : "—");
+    if (h.stars) add("Rating", "★".repeat(h.stars) + "  " + f2((h.rating || {}).total), "amb");
+    box.append(kv);
+    const r = h.rating;
+    if (r) {
+      const meter = (lab, v, max, cls, txt) => { const m = el("div", "meter"); const b = el("div", "bar2"); const i = el("i", cls || null); i.style.width = Math.max(0, Math.min(1, v / max)) * 100 + "%"; b.append(i); m.append(el("span", null, lab), b, el("span", null, txt)); return m; };
+      box.append(meter("EDGE", r.edge || 0, 3, null, f1(r.edge) + " / 3"), meter("VALUE", r.value_used || 0, 2, null, f1(r.value_used) + " of " + f1(r.value)), meter("RISK", r.risk || 0, 2, "r", r.risk ? "−" + f1(r.risk) : "0"));
+      box.append(el("div", "rate-line", "1 + " + f1(r.edge) + " + " + f1(r.value_used) + " − " + f1(r.risk) + " = " + f2(r.total) + (r.floor ? " (raised to the 2★ floor)" : "")));
+      const ul = el("ul", "why"); (r.why || []).forEach((w) => ul.append(el("li", /^no |illiquid|thin trading|no trading|designation|distress|dilution/.test(w) ? "minus" : null, w))); box.append(ul);
+    }
+    if (h.headline) box.append(el("div", "fin", "Tracker: " + h.headline));
+    if (h.next_event && h.next_event.label) box.append(el("div", "fin", "Next: " + h.next_event.label + (h.next_event.date ? " · " + h.next_event.date : "")));
+    if (h.note) box.append(el("div", "fin", "Note: " + h.note));
+    const doc = portDocs[code] || {};
+    if ((doc.holders || []).length) box.append(el("div", "fin", "Top holders: " + doc.holders.slice(0, 5).map((x) => x.name.replace(/\s+/g, " ").slice(0, 26) + " " + x.pct.toFixed(1) + "%").join(" · ")));
+    if ((doc.catalysts || []).length) { const ul = el("ul", "why"); doc.catalysts.slice(0, 5).forEach((c) => ul.append(el("li", null, "+" + c.p + " " + c.why))); box.append(el("div", "rate-line", "Standing catalysts"), ul); }
+    const its = (doc.items || []).slice(0, 6);
+    if (its.length) { const ul = el("ul", "feed"); ul.style.maxHeight = "none"; its.forEach((it) => ul.append(feedItem(Object.assign({ code }, it), false))); box.append(ul); }
+    const row = el("div", "edit-row");
+    const go = el("button", "des-x", "ALL FILINGS & NEWS ▸"); go.type = "button"; go.addEventListener("click", () => { portSel = code; closeDes(); showView("port"); }); row.append(go);
+    const ed = el("button", "des-x", "EDIT POSITION"); ed.type = "button";
+    ed.addEventListener("click", () => { closeDes(); showView("port"); $("add-code").value = code; if (num(h.shares)) $("add-shares").value = h.shares; if (num(h.cost)) $("add-cost").value = h.cost; $("add-group").value = h.group === "held" ? "held" : "watch"; $("add-note").value = h.note || ""; $("add-shares").focus(); });
+    row.append(ed);
+    if (positions[code]) {
+      const rm = el("button", "des-x", "REMOVE"); rm.type = "button";
+      rm.addEventListener("click", () => { if (rm.dataset.armed) { removePosition(code); closeDes(); return; } rm.dataset.armed = "1"; rm.textContent = "REMOVE " + code + "?"; setTimeout(() => { if (rm.isConnected) { delete rm.dataset.armed; rm.textContent = "REMOVE"; } }, 5000); });
+      row.append(rm);
+    }
+    box.append(row);
+    if (!positions[code] && !h.pending) box.append(el("div", "rate-line", "From the Tokyo Filings Tracker: remove it there. Shares and cost can be set here."));
+    return box;
+  }
+
   // ---------------------------------------------------------------- security panel (DES)
   function findValue(code) {
     for (const k of ["re_netnet", "net_net", "cash_rich", "deep_value", "treasury", "parent_sub"]) {
@@ -1000,7 +1331,8 @@ table.t tr.mine td.nm b { color: var(--key); }
     code = String(code || "").toUpperCase();
     const v = findValue(code), f = frByCode()[code], hs = items.filter((h) => h.code === code).sort((a, b) => (b._date + (b.time || "") > a._date + (a.time || "") ? 1 : -1));
     const m = ((mineDoc && mineDoc.rows) || []).find((r) => r.code === code);
-    const name = (v && v.name) || (f && f.name) || (hs[0] && hs[0].company) || (m && m.name) || "";
+    const ph = holdingsMerged().find((x) => x.code === code);
+    const name = (v && v.name) || (f && f.name) || (hs[0] && hs[0].company) || (m && m.name) || (ph && ph.name) || ((uni[code] || [])[0]) || "";
     const d = $("des");
     d.replaceChildren();
     const h = el("div", "des-h");
@@ -1012,7 +1344,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     d.append(h);
     const kv = el("div", "kv");
     const add = (k, val, cls) => { const c = el("div"); c.append(el("span", null, k), el("b", cls || null, val)); kv.append(c); };
-    const px = (hs.find((x) => num(x.price)) || {}).price ?? (v && v.price);
+    const px = (ph && ph.snap && ph.snap.price) ?? (hs.find((x) => num(x.price)) || {}).price ?? (v && v.price) ?? (uni[code] || [])[2];
     add("Last", num(px) ? "¥" + px.toLocaleString("en-US") : "—");
     add("Mcap", yen((v && v.mcap) ?? (f && f.mcap) ?? (hs[0] && hs[0].mcap)));
     add("RE net-net idx", f3((v && v.re_index) ?? (f && f.re_index)), "pos");
@@ -1028,6 +1360,13 @@ table.t tr.mine td.nm b { color: var(--key); }
       const p = el("div", "fin");
       p.textContent = (lists.length ? "Value lists: " + lists.join(", ") : "") + (m && m.ref_rank ? (lists.length ? " · " : "") + "Reference rank " + m.ref_rank + " (index " + f3(m.ref_index) + ")" : "") + (v && v.source ? " · source: " + v.source : "");
       d.append(p);
+    }
+    const pb = positionBlock(code);
+    if (pb) d.append(pb);
+    else if (dbRef) {
+      const add = el("button", "des-x", "+ ADD TO PORTFOLIO"); add.type = "button";
+      add.addEventListener("click", () => { closeDes(); showView("port"); $("add-code").value = code; $("add-shares").focus(); });
+      d.append(add);
     }
     if (f && (f.reasons || []).length) {
       d.append(el("h4", null, "Pre-deal signals"));
@@ -1060,7 +1399,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   $("des-back").addEventListener("click", closeDes);
 
   // ---------------------------------------------------------------- command line + keys
-  const VIEWS = ["radar", "cheap", "value", "pre", "mine", "help"];
+  const VIEWS = ["radar", "port", "cheap", "value", "pre", "mine", "help"];
   function showView(v) {
     view = v;
     VIEWS.forEach((id) => { $(id).hidden = id !== v; });
@@ -1074,26 +1413,30 @@ table.t tr.mine td.nm b { color: var(--key); }
     ((wl.re_netnet || {}).rows || []).forEach((r) => seen.set(r.code, r.name));
     items.forEach((h) => { if (!seen.has(h.code)) seen.set(h.code, h.company); });
     ((fr && fr.rows) || []).forEach((r) => { if (!seen.has(r.code)) seen.set(r.code, r.name); });
-    [...seen.entries()].slice(0, 1500).forEach(([c, n]) => { const o = el("option"); o.value = c; o.label = n; dl.append(o); });
+    ((port && port.holdings) || []).forEach((h) => { if (!seen.has(h.code)) seen.set(h.code, h.name); });
+    Object.entries(uni).forEach(([c, u]) => { if (!seen.has(c)) seen.set(c, u[0]); });
+    [...seen.entries()].slice(0, 4500).forEach(([c, n]) => { const o = el("option"); o.value = c; o.label = n; dl.append(o); });
   }
   $("cmd").addEventListener("submit", (e) => {
     e.preventDefault();
     const raw = ($("cmd-in").value || "").trim();
     const q = raw.toUpperCase().replace(/\s*<?GO>?$/, "").replace(/\s+(JT|JP|EQUITY)$/, "");
     if (!q) return;
-    const viewCmd = { RADAR: "radar", CHEAP: "cheap", NETNET: "cheap", VALUE: "value", PRE: "pre", "PRE-DEAL": "pre", MY: "mine", MINE: "mine", HELP: "help" }[q];
+    const viewCmd = { RADAR: "radar", PORT: "port", PORTFOLIO: "port", CHEAP: "cheap", NETNET: "cheap", VALUE: "value", PRE: "pre", "PRE-DEAL": "pre", COVERAGE: "mine", MINE: "mine", HELP: "help" }[q];
     if (viewCmd) { showView(viewCmd); $("cmd-in").value = ""; return; }
     if (/^[0-9][0-9A-Z]{3}$/.test(q)) { openDes(q); $("cmd-in").value = ""; return; }
     const ql = raw.toLowerCase();
     const hit = ((wl.re_netnet || {}).rows || []).find((r) => (r.name || "").toLowerCase().includes(ql)) || items.find((h) => (h.company || "").toLowerCase().includes(ql))
-      || ((fr && fr.rows) || []).find((r) => (r.name || "").toLowerCase().includes(ql));
+      || ((fr && fr.rows) || []).find((r) => (r.name || "").toLowerCase().includes(ql))
+      || (Object.entries(uni).find(([, u]) => (u[0] || "").toLowerCase().includes(ql)) || []).map((x, i) => (i === 0 ? { code: x } : null))[0];
     if (hit) { openDes(hit.code); $("cmd-in").value = ""; }
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !$("des").hidden) { closeDes(); return; }
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (/^[1-6]$/.test(e.key)) { showView(VIEWS[Number(e.key) - 1]); e.preventDefault(); }
+    if (/^[1-7]$/.test(e.key)) { showView(VIEWS[Number(e.key) - 1]); e.preventDefault(); }
+    else if (e.key === "p" || e.key === "P") { showView("port"); e.preventDefault(); }
     else if (e.key === "/") { $("cmd-in").focus(); e.preventDefault(); }
   });
 
@@ -1101,6 +1444,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   function syncSegs() {
     const sync = (id, val) => document.querySelectorAll("#" + id + " button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === String(val))));
     sync("seg-period", period); sync("seg-stars", minStars); sync("seg-mkt", cheapMkt); sync("seg-adv", cheapAdv); sync("seg-pre", preMin);
+    sync("seg-pgroup", portGroup); sync("seg-pkind", portKind);
   }
   function bindSeg(id, set, after) {
     document.querySelectorAll("#" + id + " button").forEach((b) => b.addEventListener("click", () => { set(b.dataset.v); syncSegs(); after(); }));
@@ -1110,6 +1454,8 @@ table.t tr.mine td.nm b { color: var(--key); }
   bindSeg("seg-mkt", (v) => { cheapMkt = v; store.set("jr-mkt", v); }, renderCheap);
   bindSeg("seg-adv", (v) => { cheapAdv = Number(v); store.set("jr-adv", v); }, renderCheap);
   bindSeg("seg-pre", (v) => { preMin = Number(v); store.set("jr-pre", v); }, renderPre);
+  bindSeg("seg-pgroup", (v) => { portGroup = v; store.set("jr-pgroup", v); }, renderPort);
+  bindSeg("seg-pkind", (v) => { portKind = v; }, renderFeed);
   syncSegs();
   $("only-mine").addEventListener("change", (e) => { onlyMine = e.target.checked; store.set("jr-only-mine", onlyMine ? "1" : "0"); renderRadar(); });
   $("only-cheap").addEventListener("change", (e) => { onlyCheap = e.target.checked; store.set("jr-only-cheap", onlyCheap ? "1" : "0"); renderRadar(); });
@@ -1119,9 +1465,9 @@ table.t tr.mine td.nm b { color: var(--key); }
   document.querySelectorAll(".wl-btn").forEach((b) => b.addEventListener("click", () => { wlList = b.dataset.l; store.set("jr-wl", wlList); renderValue(); }));
 
   function renderRadar() { renderTape(); renderIdeas(); renderDesk(); }
-  function renderAll() { renderRadar(); renderCheap(); renderValue(); renderPre(); renderMine(); fillDatalist(); }
+  function renderAll() { renderRadar(); renderPort(); renderCheap(); renderValue(); renderPre(); renderMine(); fillDatalist(); }
 
-  const hashView = { "#cheap": "cheap", "#value": "value", "#pre": "pre", "#mine": "mine", "#help": "help", "#radar": "radar" }[location.hash];
+  const hashView = { "#port": "port", "#portfolio": "port", "#cheap": "cheap", "#value": "value", "#pre": "pre", "#mine": "mine", "#coverage": "mine", "#help": "help", "#radar": "radar" }[location.hash];
   const saved = store.get("jr-view", "radar");
   showView(hashView || (VIEWS.includes(saved) ? saved : "radar"));
   renderAll();
@@ -1145,6 +1491,21 @@ table.t tr.mine td.nm b { color: var(--key); }
     }, () => {});
     db.collection("frontrun").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "latest"); fr = d ? d.data() : null; renderAll(); }, () => {});
     db.collection("mine").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "latest"); mineDoc = d ? d.data() : null; renderAll(); }, () => {});
+    dbRef = db;
+    db.collection("portfolio").onSnapshot((snap) => {
+      port = null; portDocs = {};
+      snap.docs.forEach((d) => { if (d.id === "summary") port = d.data(); else portDocs[d.id] = d.data(); });
+      renderPort(); fillDatalist();
+    }, () => {});
+    db.collection("positions").onSnapshot((snap) => {
+      positions = {};
+      snap.docs.forEach((d) => { const x = d.data(); if (x && x.code) positions[x.code] = x; });
+      renderPort();
+    }, () => {});
+    db.collection("universe").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "names"); uni = d ? (d.data().rows || {}) : {}; renderPort(); }, () => {});
+    db.doc("config/refresh").onSnapshot((snap) => { cfg = snap.exists ? snap.data() : null; renderRefresh(); }, () => {});
+    renderRefresh();
   })();
+  (async () => { mcp = await window.claude?.use?.("mcp"); })();
 })();
 </script>

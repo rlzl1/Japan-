@@ -41,6 +41,8 @@ class Fundamentals:
     net_income: Optional[float] = None
     net_income_history: list = field(default_factory=list)   # newest first
     op_income_history: list = field(default_factory=list)
+    fcf_history: list = field(default_factory=list)          # newest first: OCF - capex (or OCF + investing CF)
+    dividends_paid: Optional[float] = None                  # cash dividends paid last FY (CF statement), yen
     shares_issued: Optional[float] = None
     treasury_shares: Optional[float] = None
     rental_fair_value: Optional[float] = None
@@ -218,6 +220,45 @@ def income(fs: FactSet, f: Fundamentals) -> None:
         f.op_income_history = hist_op
 
 
+def cash_flows(fs: FactSet, f: Fundamentals) -> None:
+    """FCF per year, newest first: OCF − capex from the statements (2 years), OCF + investing CF from the summary."""
+    cons = f.consolidated if f.consolidated is not None else True
+    out = []
+    for base in ("CurrentYearDuration", "Prior1YearDuration"):
+        def p(ctx, base=base):
+            b_, m = split_context(ctx)
+            return b_ == base and ((not m) if cons else (m == ["NonConsolidatedMember"]))
+        ocf = _first(fs, ["NetCashProvidedByUsedInOperatingActivities", "NetCashProvidedByUsedInOperatingActivitiesIFRS"], p)
+        capex = None
+        for n in ("PurchaseOfPropertyPlantAndEquipment", "PurchaseOfPropertyPlantAndEquipmentAndIntangibleAssets",
+                  "PurchaseOfPropertyPlantAndEquipmentInvCF", "PurchaseOfPropertyPlantAndEquipmentIFRS"):
+            v = fs.num(n, p)
+            if v is not None:
+                capex = (capex or 0) + abs(v)
+        intang = fs.num("PurchaseOfIntangibleAssets", p) or fs.num("PurchaseOfIntangibleAssetsInvCF", p)
+        if capex is not None and intang is not None:
+            capex += abs(intang)
+        if ocf is not None and capex is not None:
+            out.append(ocf - capex)
+        if base == "CurrentYearDuration":
+            div = _first(fs, ["CashDividendsPaidFinCF", "CashDividendsPaid", "DividendsPaidFinCF", "DividendsPaidIFRS"], p)
+            if div is not None:
+                f.dividends_paid = abs(div)
+    if len(out) < 3:
+        summ = []
+        for base in ("CurrentYearDuration", "Prior1YearDuration", "Prior2YearDuration", "Prior3YearDuration"):
+            def p(ctx, base=base):
+                b_, m = split_context(ctx)
+                return b_ == base and ((not m) if cons else (m == ["NonConsolidatedMember"]))
+            o = next((x.value for x in fs.matching(r"OperatingActivities\w*SummaryOfBusinessResults") if x.value is not None and p(x.context)), None)
+            i = next((x.value for x in fs.matching(r"InvestingActivities\w*SummaryOfBusinessResults") if x.value is not None and p(x.context)), None)
+            summ.append(o + i if o is not None and i is not None else None)
+        for v in summ[len(out):]:
+            if v is not None:
+                out.append(v)
+    f.fcf_history = out[:5]
+
+
 def shares(fs: FactSet, f: Fundamentals) -> None:
     issued = None
     for x in fs.matching(r"(TotalNumberOfIssuedShares|NumberOfIssuedSharesAsOfFiscalYearEnd|"
@@ -392,6 +433,7 @@ def going_concern(fs: FactSet, f: Fundamentals) -> None:
 def from_facts(fs: FactSet, code: str = "", source: str = "", annual: bool = True) -> Fundamentals:
     f = balance_sheet(fs, code, source)
     income(fs, f)
+    cash_flows(fs, f)
     shares(fs, f)
     if annual:
         rental_property(fs, f)

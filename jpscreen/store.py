@@ -30,7 +30,7 @@ class Store:
 
     def _load_fund(self) -> dict:
         if self._fund is None:
-            self._fund = json.loads(self.fund_path.read_text()) if self.fund_path.exists() else {}
+            self._fund = self._read(self.fund_path)
         return self._fund
 
     def fundamentals(self, code: str) -> Optional[Fundamentals]:
@@ -67,14 +67,34 @@ class Store:
         if annual and (rec.get("latest") is None or d["filed"] >= rec["latest"].get("filed", "")):
             rec["latest"] = d
 
+    def has_source(self, code: str, source: str) -> bool:
+        rec = self._load_fund().get(code) or {}
+        return any((rec.get(k) or {}).get("source", "").startswith(source) for k in ("annual", "latest"))
+
     def fundamentals_codes(self) -> list[str]:
         return list(self._load_fund().keys())
 
+    @staticmethod
+    def _atomic_write(path: Path, text: str) -> None:
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(text)
+        tmp.replace(path)
+
+    @staticmethod
+    def _read(path: Path) -> dict:
+        import time
+        for _ in range(5):          # another process may be replacing the file right now
+            try:
+                return json.loads(path.read_text()) if path.exists() else {}
+            except ValueError:
+                time.sleep(1)
+        return {}
+
     def save(self) -> None:
         if self._fund is not None:
-            self.fund_path.write_text(json.dumps(self._fund, ensure_ascii=False))
+            self._atomic_write(self.fund_path, json.dumps(self._fund, ensure_ascii=False))
         if self._docs is not None:
-            self.docs_path.write_text(json.dumps(self._docs, ensure_ascii=False))
+            self._atomic_write(self.docs_path, json.dumps(self._docs, ensure_ascii=False))
 
     # ---------------------------------------------------------------- parsed documents
     @property
@@ -83,7 +103,7 @@ class Store:
 
     def _load_docs(self) -> dict:
         if self._docs is None:
-            self._docs = json.loads(self.docs_path.read_text()) if self.docs_path.exists() else {}
+            self._docs = self._read(self.docs_path)
         return self._docs
 
     def parsed(self, doc_id: str) -> Optional[dict]:

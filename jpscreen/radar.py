@@ -236,7 +236,7 @@ KEEP = ("id", "date", "time", "company", "code", "market", "sector", "title", "u
         "mcap", "price", "price_date", "adv", "pe", "pb", "re_index", "asset_margin_vs_mcap", "ncav_vs_mcap",
         "treasury_pct", "premium_pct", "appraisal_premium_pct", "return_yield", "buyback_vs_mcap", "div_yield",
         "gain_vs_mcap", "pro_forma_vs_mcap", "contract_pct", "contract_vs_mcap", "fin", "end", "bidder",
-        "debt_equity", "profitable_years", "years_known", "doc_read", "designation")
+        "debt_equity", "profitable_years", "years_known", "doc_read", "designation", "rating", "fcf3_yield")
 
 
 def _slim(h: dict) -> dict:

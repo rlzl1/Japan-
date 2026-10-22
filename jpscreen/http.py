@@ -60,7 +60,7 @@ class Http:
         self._last_hit[host] = time.monotonic()
 
     def get(self, url: str, params: Optional[dict] = None, ttl: Optional[float] = None,
-            headers: Optional[dict] = None, allow_404: bool = False) -> Optional[bytes]:
+            headers: Optional[dict] = None, allow_404: bool = False, store: bool = True) -> Optional[bytes]:
         """GET with cache. ttl=None caches forever, ttl=0 never reads the cache.
 
         Returns None for 404 when allow_404 is set (TDnet deletes documents after ~31 days).
@@ -89,8 +89,9 @@ class Http:
                 time.sleep(2 ** (attempt + 1))
                 continue
             if r.status_code == 200:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(r.content)
+                if store:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(r.content)
                 return r.content
             if r.status_code == 404 and allow_404:
                 path.parent.mkdir(parents=True, exist_ok=True)

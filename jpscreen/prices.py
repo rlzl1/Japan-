@@ -147,6 +147,37 @@ class YahooJapan:
         return None
 
 
+YJ_RANKING = "https://finance.yahoo.co.jp/stocks/ranking/marketCapitalHigh"
+
+
+def parse_ranking_page(html: str) -> list[dict]:
+    s = html.replace('\\"', '"')
+    out = []
+    for m in re.finditer(r'\{"rank":"(\d+)","stockCode":"([0-9A-Z]{4})","marketName":"([^"]*)","stockName":"([^"]*)",'
+                         r'"detailLink":"[^"]*","bbsUrl":"[^"]*","savePrice":"([^"]*)","date":"[^"]*",'
+                         r'"rankingResult":\{.*?"totalPriceObj":\{"updateDateTime":"([^"]*)","sharesIssued":"([^"]*)","totalPrice":"([^"]*)"', s):
+        out.append(dict(code=m.group(2), market=m.group(3), name=nfkc(m.group(4)), price=_num(m.group(5)),
+                        asof=m.group(6), shares=_num(m.group(7)), mcap=(_num(m.group(8)) or 0) * 1e6 or None))
+    return out
+
+
+def bulk_prices(http: Http, ttl: float = 6 * 3600, max_pages: int = 120) -> dict[str, dict]:
+    """Latest price, shares issued and market cap for every listed stock from Yahoo's market-cap ranking (50 a page)."""
+    out: dict[str, dict] = {}
+    for page in range(1, max_pages + 1):
+        try:
+            html = http.get_text(YJ_RANKING, params={"market": "all", "term": "daily", "page": page}, ttl=ttl)
+        except HttpError as e:
+            log.warning("ranking page %s: %s", page, e)
+            break
+        rows = parse_ranking_page(html or "")
+        if not rows:
+            break
+        for r in rows:
+            out.setdefault(r["code"], r)
+    return out
+
+
 class PriceBook:
     """Quotes keyed by code, persisted between runs (prices refresh after `ttl`)."""
 
@@ -190,6 +221,20 @@ class PriceBook:
             for code, q in ex.map(work, todo.items()):
                 if q:
                     self.quotes[code] = q
+
+    def load_bulk(self, http: Http) -> int:
+        """Fill quotes for every listed stock (price, shares, market cap; no history) from the ranking pages."""
+        n = 0
+        for code, r in bulk_prices(http).items():
+            if code in self.quotes and self.quotes[code].history:
+                continue      # a full quote (with trading history) is already here
+            if r.get("price"):
+                d = re.search(r"(\d{4})/(\d{2})/(\d{2})", r.get("asof") or "")
+                self.quotes[code] = Quote(code=code, symbol=f"{code}.T", name=r["name"], price=r["price"],
+                                          price_date=f"{d.group(1)}-{d.group(2)}-{d.group(3)}" if d else None,
+                                          mcap_issued=r.get("mcap"), shares_issued=r.get("shares"), market_label=r.get("market") or "")
+                n += 1
+        return n
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)

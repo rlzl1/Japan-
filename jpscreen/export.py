@@ -38,6 +38,19 @@ def db_docs(store: Store) -> dict[str, dict]:
     cov = store.read_json("coverage.json")
     if cov:
         docs["mine/latest"] = cov
+    pdir = store.root / "portfolio"
+    if (pdir / "summary.json").exists():
+        for p in pdir.glob("*.json"):
+            if p.stem in ("to_translate", "translations"):
+                continue
+            docs[f"portfolio/{p.stem}"] = json.loads(p.read_text())
+    uni = store.read_json("universe.json")
+    if uni:
+        docs["universe/names"] = uni
+    if store.fund_path.exists():
+        from .dbsync import store_chunks
+        for k, v in store_chunks(store).items():
+            docs[f"cache/{k}"] = v
     return docs
 
 
@@ -48,7 +61,8 @@ def fit(doc: dict) -> dict:
     """Trim the longest list in a document until it fits the database's per-document cap."""
     def size(d):
         return len(json.dumps(d, ensure_ascii=False, separators=(",", ":"), default=str).encode())
-    key = "hits" if "hits" in doc else "rows" if "rows" in doc else None
+    key = "hits" if "hits" in doc else "rows" if isinstance(doc.get("rows"), list) else "items" if "items" in doc else \
+        "feed" if "feed" in doc else None
     if key is None:
         return doc
     doc = dict(doc)
