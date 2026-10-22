@@ -34,7 +34,7 @@ def db_docs(store: Store) -> dict[str, dict]:
         docs["watchlist/meta"] = value["meta"]
     fr = store.read_json("frontrun.json")
     if fr:
-        docs["frontrun/latest"] = dict(date=fr["date"], rows=fr["rows"][:250])
+        docs["frontrun/latest"] = dict(fr, rows=fr["rows"][:250])   # keeps a restored copy identical
     cov = store.read_json("coverage.json")
     if cov:
         docs["mine/latest"] = cov

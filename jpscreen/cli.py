@@ -210,6 +210,8 @@ def cmd_daily(args, ctx, edinet):
         value = ctx.store.read_json("value.json", {})
         ctx.value_tags = (value.get("lists") or {}).get("_tags", {})
         ctx.value_rows = {r["code"]: r for r in (value.get("rows_all") or [])}
+    else:
+        ctx.prices.load_bulk(ctx.tdnet.http)     # today's price for every listed stock (tickers added on the page)
     args.date_from = args.date_from or max(since + dt.timedelta(days=1), today - dt.timedelta(days=6)).isoformat()
     cmd_radar(args, ctx, edinet)
     for p in collection_files(db, "frontrun"):
