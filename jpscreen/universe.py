@@ -110,10 +110,11 @@ class Universe:
                     c = Company(code=code, name=nfkc(r.get("提出者名")).replace("株式会社", "").strip(),
                                 market="地方", sector=str(r.get("提出者業種") or ""))
                     companies[code] = c
-                c.edinet_code = str(r.get("EDINETコード") or "")
-                c.fiscal_year_end = str(r.get("決算日") or "")
-                c.consolidated = str(r.get("連結の有無")) == "有"
-                c.name_en = str(r.get("提出者名(英字)") or "")
+                cell = lambda k: "" if pd.isna(r.get(k)) else str(r.get(k)).strip()  # noqa: E731  (blank cells are NaN)
+                c.edinet_code = cell("EDINETコード")
+                c.fiscal_year_end = cell("決算日")
+                c.consolidated = cell("連結の有無") == "有"
+                c.name_en = cell("提出者名(英字)")
         except Exception as e:
             log.warning("EDINET code list unavailable: %s", e)
         return cls(companies)

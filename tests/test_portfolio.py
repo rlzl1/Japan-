@@ -101,3 +101,12 @@ def test_news_noise():
     assert is_noise(dict(kind="news", ja="佐藤食品工業 サトウのごはん", src="もぐナビ"))
     assert not is_noise(dict(kind="news", ja="イサム塗料滋賀工場、落雷で出荷一時停止", src="LOGISTICS TODAY"))
     assert not is_noise(dict(kind="filing", ja="本日の開示", src="TDnet"))
+
+
+def test_short_en():
+    from jpscreen.portfolio import short_en
+    assert short_en("TOYOTA MOTOR CORPORATION") == "Toyota Motor"
+    assert short_en("Nagase & Co., Ltd.") == "Nagase"
+    assert short_en("THE ZENITAKA CORPORATION") == "Zenitaka"
+    assert short_en("Isamu Paint Co.,Ltd.") == "Isamu Paint"
+    assert short_en("NTT DATA GROUP CORPORATION") == "NTT Data Group"

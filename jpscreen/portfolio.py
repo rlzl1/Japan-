@@ -28,6 +28,7 @@ from .value import build_row
 
 log = logging.getLogger(__name__)
 
+ITEM_DAYS = 730          # the feed keeps two years of history
 KEEP_ITEMS = 80          # per company
 FEED_ITEMS = 150         # newest items across the portfolio in the summary
 EVENT_DAYS = 180
@@ -42,6 +43,8 @@ def _load_dir(d: Optional[str | Path]) -> list[dict]:
             x = json.loads(p.read_text())
         except ValueError:
             continue
+        if not isinstance(x, dict):
+            continue                 # e.g. the translation queue kept next to the portfolio documents
         x = x["data"] if isinstance(x.get("data"), dict) and "version" in x else x
         x.setdefault("_id", p.stem)
         out.append(x)
@@ -131,11 +134,15 @@ def build(ctx: Context, holdings: list[dict], runs: list[dict], frontrun_rows: l
         _dedupe_same_filing(items)
         fresh_set = set(fresh)
         _tracker_match(list(items.values()), (h.get("tracker") or {}).get("items") or [])
-        keep = sorted(items.values(), key=lambda x: (x.get("date") or "", x["id"]), reverse=True)[:KEEP_ITEMS]
+        cutoff = (today_jst() - dt.timedelta(days=ITEM_DAYS)).isoformat()
+        keep = sorted((it for it in items.values() if (it.get("date") or "") >= cutoff),
+                      key=lambda x: (x.get("date") or "", x["id"]), reverse=True)[:KEEP_ITEMS]
         if not old:
             for it in keep:
                 it["seeded"] = True      # the first refresh of a holding is history, not news
         for it in keep:
+            if not it.get("en") and it["kind"] == "filing":
+                it["en"] = title_en(it["ja"])          # routine titles, also for items carried over
             if not it.get("en"):
                 to_translate.append(dict(code=code, id=it["id"], ja=it["ja"], kind=it["kind"]))
         # ---- radar events on this company
@@ -171,7 +178,7 @@ def build(ctx: Context, holdings: list[dict], runs: list[dict], frontrun_rows: l
         stars, rating = holding_rating(snap, events, standing, today, designation)
         # ---- position
         pos = _position(h, snap)
-        hrow = dict(code=code, name=name, en=h.get("en") or (comp.name_en if comp else ""), market=comp.market if comp else "",
+        hrow = dict(code=code, name=name, en=h.get("en") or (short_en(comp.name_en) if comp else ""), market=comp.market if comp else "",
                     sector=comp.sector if comp else (h.get("tracker") or {}).get("sector"), group=h["group"],
                     source=h.get("source"), stars=stars, rating=rating, snap=snap, **pos,
                     new=sum(1 for x in keep if x["id"] in fresh_set and not x.get("seeded")),
@@ -354,6 +361,24 @@ def apply_translations(result: dict, translations: dict[str, str]) -> int:
             it["en"] = en[:220]
     result["to_translate"] = [t for t in result["to_translate"] if t["id"] not in translations]
     return n
+
+
+def short_en(name: str) -> str:
+    """'TOYOTA MOTOR CORPORATION' -> 'Toyota Motor'; 'Nagase & Co., Ltd.' -> 'Nagase'; 'THE ZENITAKA CORP.' -> 'Zenitaka'."""
+    n = re.sub(r"\s+", " ", name or "").strip()
+    n = re.sub(r"[,.]?\s*(&\s*)?(CO\.?,?\s*LTD\.?|CORPORATION|CORP\.?|INCORPORATED|INC\.?|LIMITED|LTD\.?|K\.K\.|"
+               r"KABUSHIKI KAISHA|COMPANY,? LIMITED|COMPANY|CO\.)$", "", n, flags=re.I).strip(" ,.&")
+    n = re.sub(r"^THE\s+", "", n, flags=re.I)
+    if n.isupper() or n.islower():
+        small = {"AND": "and", "OF": "of", "FOR": "for", "THE": "the", "IN": "in"}
+        n = " ".join(small.get(w, w if re.fullmatch(r"[A-Z]{1,3}|[A-Z]&[A-Z]", w) else w.capitalize())
+                     for w in n.split(" "))
+    return n[:32]
+
+
+def universe_en_doc(ctx: Context) -> dict:
+    """code -> short English name (EDINET's register), so the page can show any ticker in English."""
+    return dict(date=today_jst().isoformat(), rows={c.code: short_en(c.name_en) for c in ctx.universe if c.name_en})
 
 
 def universe_doc(ctx: Context) -> dict:

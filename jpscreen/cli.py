@@ -102,7 +102,7 @@ def cmd_value(args, ctx, edinet):
 
 def cmd_port(args, ctx, edinet):
     import json as _json
-    from .portfolio import build, load_holdings, save, universe_doc
+    from .portfolio import build, load_holdings, save, universe_doc, universe_en_doc
     holdings = load_holdings(args.tracker_dir, args.positions_dir)
     if not holdings:
         print("portfolio: no holdings found (pass --tracker-dir and/or --positions-dir)")
@@ -112,6 +112,7 @@ def cmd_port(args, ctx, edinet):
     res = build(ctx, holdings, runs, fr, prev_dir=args.prev_dir, edinet=edinet if edinet.enabled else None)
     save(res, Path(args.state) / "portfolio")
     ctx.store.write_json("universe.json", universe_doc(ctx))
+    ctx.store.write_json("universe_en.json", universe_en_doc(ctx))
     ctx.prices.save()
     return res
 

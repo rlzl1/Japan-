@@ -47,6 +47,9 @@ def db_docs(store: Store) -> dict[str, dict]:
     uni = store.read_json("universe.json")
     if uni:
         docs["universe/names"] = uni
+    uni_en = store.read_json("universe_en.json")
+    if uni_en:
+        docs["universe/en"] = uni_en
     if store.fund_path.exists():
         from .dbsync import store_chunks
         for k, v in store_chunks(store).items():

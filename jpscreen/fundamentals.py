@@ -309,31 +309,102 @@ def _last_number(cells: list[str]) -> Optional[float]:
     return None
 
 
+YEAR_HEAD = re.compile(r"(前|当)(連結)?(会計|事業)?年度(?:\s|　|&nbsp;|<[^>]+>)*[（(]\s*(?:自|\d{4}年)")
+NUM_CELL = re.compile(r"[△▲\-−]?\s*[\d,]+(\.\d+)?\s*(百万円|千円|円)?")
+BOOK_ROW = re.compile(r"期末残高|期末帳簿価額|帳簿価額|貸借対照表計上額")
+SUM_ROW = re.compile(r"^(合計|計|総計)$")
+CLASS_MARK = re.compile(r"[（(][1-9１-９][）)]|賃貸等不動産として使用される部分を含む不動産|それ以外の不動産")
+
+
+def _current_year(html: str) -> str:
+    """Notes that print last year's table and this year's one after the other: keep this year's part."""
+    spans = [m.span() for m in re.finditer(r"<table\b.*?</table>", html, re.S | re.I)]
+    heads = [m for m in YEAR_HEAD.finditer(html) if not any(a <= m.start() < b for a, b in spans)]
+    cur = [m for m in heads if m.group(1) == "当"]
+    return html[cur[-1].start():] if cur else html
+
+
+def _rows(table_html: str) -> list[list[str]]:
+    tables, _ = _tables(table_html)
+    return tables[0] if tables else []
+
+
+def _cell_number(c: str) -> Optional[float]:
+    """A cell that holds just an amount ("1,171", "△71", "1,243百万円", "7,683 〃", "※2 9,801"), else None."""
+    t = re.sub(r"(百万円|千円|円|〃|″|”|\"|\s)+$", "", c.strip())
+    t = re.sub(r"^[※＊*]\s*\d?\s+", "", t)
+    return parse_jp_number(t) if NUM_CELL.fullmatch(t) and re.search(r"\d", t) else None
+
+
+def _split_row(r: list[str]) -> tuple[str, list[float]]:
+    label, nums = [], []
+    for c in r:
+        v = _cell_number(c)
+        if v is not None:
+            nums.append(v)
+        elif c.strip() not in ("", "－", "-", "―"):
+            label.append(c)
+    return " ".join(label), nums
+
+
+def _table_values(rows: list[list[str]]) -> tuple[Optional[float], Optional[float]]:
+    """(fair value, book value) of one table, in the table's unit, for the latest period."""
+    split = [_split_row(r) for r in rows]
+    # vertical: one row per measure (期末残高, 期末時価), one column per year (the last is the latest)
+    fv = book = None
+    for label, nums in split:
+        if not nums or re.search(r"前(連結)?(会計|事業)?年度|前期末(?!残高)", label):
+            continue
+        if FV_ROW.search(label) and not NOT_FV.search(label):
+            fv = (fv or 0) + nums[-1]
+        elif BOOK_ROW.search(label) and not re.search(r"期首|前期末|期中|増減", label):
+            book = (book or 0) + nums[-1]
+    if fv is not None:
+        return fv, book
+    # horizontal: header cells name the measures (… 期末残高 | 時価), one row per class of property
+    head = " ".join(lb for lb, nums in split if not nums)
+    if not FV_ROW.search(head):
+        return None, None
+    data = [(lb, nums) for lb, nums in split if len(nums) >= 2 and not FV_ROW.search(lb)]
+    if any(re.search(r"期首|期中|増減|期末残高", lb) for lb, _ in data):
+        return None, None          # a measures-as-rows table whose value row could not be read
+    total = [d for d in data if SUM_ROW.match(d[0].strip())]
+    data = total[-1:] or data
+    if not data:
+        return None, None
+    return sum(n[-1] for _, n in data), sum(n[-2] for _, n in data)
+
+
 def parse_rental_note(html: str) -> dict:
-    """Fair value and book value of 賃貸等不動産 (or IFRS 投資不動産) from the note's HTML, in yen."""
-    tables, text = _tables(html)
+    """Fair value and book value of 賃貸等不動産 (or IFRS 投資不動産) from the note's HTML, in yen.
+
+    Handles one table or one per class of property ((1) partly used by the company, (2) the rest), measures as rows
+    or as columns, footnote markers in labels, and notes that repeat the table for the previous year."""
+    _, text = _tables(html)
     m = UNIT_RE.search(text)
     unit = m.group(1) if m else ("千円" if "千円" in text and "百万円" not in text else "百万円")
-    mult = UNIT_MULT[unit]
-    if re.search(r"重要性が(乏しい|ない)|記載を省略|注記を省略", text) and not any(
-            any(FV_ROW.search(" ".join(r)) for r in t) for t in tables):
+    if re.search(r"重要性が(乏しい|ない)|記載を省略|注記を省略|該当事項はありません|該当事項なし", text) and not FV_ROW.search(
+            " ".join(" ".join(r) for t in _tables(html)[0] for r in t)):
         return {"fair_value": 0.0, "book_value": 0.0, "method": "immaterial", "unit": unit}
-    cands = [t for t in tables if any(FV_ROW.search(" ".join(r)) for r in t)]
-    if cands:
-        t = cands[-1]
-        fv = book = None
-        for r in t:
-            label = " ".join(c for c in r if not re.search(r"\d", c))
-            v = _last_number(r)
-            if v is None:
-                continue
-            if FV_ROW.search(label) and not NOT_FV.search(label):
-                fv = (fv or 0) + v
-            elif "期末残高" in label:
-                book = (book or 0) + v
-        if fv is not None:
-            return {"fair_value": fv * mult, "book_value": (book * mult) if book is not None else None,
-                    "method": "table", "unit": unit}
+    part = _current_year(html)
+    found, prev_end = [], 0
+    for tm in re.finditer(r"<table\b.*?</table>", part, re.S | re.I):
+        rows = _rows(tm.group(0))
+        fv, book = _table_values(rows)
+        if fv is None:
+            continue
+        before = nfkc(re.sub(r"<[^>]+>", " ", part[prev_end:tm.start()]))    # text since the previous value table
+        prev_end = tm.end()
+        um = UNIT_RE.findall(before) or UNIT_RE.findall(" ".join(" ".join(r) for r in rows))
+        t_unit = um[-1] if um else ("千円" if re.search(r"[（(]千円[）)]", " ".join(" ".join(r) for r in rows)) else unit)
+        mult = UNIT_MULT[t_unit]
+        found.append(dict(fv=fv * mult, book=book * mult if book is not None else None, cls=bool(CLASS_MARK.search(before))))
+    if found:
+        use = found if len(found) > 1 and sum(f["cls"] for f in found) >= len(found) - 1 else found[-1:]
+        books = [f["book"] for f in use]
+        return {"fair_value": sum(f["fv"] for f in use),
+                "book_value": sum(books) if all(b is not None for b in books) else None,
+                "method": "table" if len(use) == 1 else f"tables:{len(use)}", "unit": unit}
     m = re.search(r"(?:期末|当連結会計年度末|当事業年度末)?(?:の)?時価(?:は|:)?\s*([\d,]+)\s*(百万円|千円)", text)
     if m:
         return {"fair_value": parse_jp_number(m.group(1)) * UNIT_MULT[m.group(2)], "book_value": None,
@@ -352,7 +423,7 @@ def rental_property(fs: FactSet, f: Fundamentals) -> None:
     best = None
     for b in blocks:
         r = parse_rental_note(b.text or "")
-        if r["fair_value"] is not None and (best is None or r["method"] == "table"):
+        if r["fair_value"] is not None and (best is None or r["method"].startswith("table")):
             best = r
     if best:
         f.rental_fair_value, f.rental_book_value, f.rental_note = best["fair_value"], best["book_value"], best["method"]

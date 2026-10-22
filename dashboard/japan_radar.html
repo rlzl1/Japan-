@@ -744,7 +744,7 @@ table.t tr.mine td.nm b { color: var(--key); }
       const r1 = el("div", "r1");
       r1.append(starsEl(h._stars), el("span", "tag", c.label));
       const nm = el("div");
-      nm.append(el("span", "co", h.company + " "), el("span", "sub", h.code + " · " + (h.market || "") + " · " + fmtDate(h._date)));
+      nm.append(nameEl("span", "co", h.code, h.company), el("span", "sub", " " + h.code + " · " + (h.market || "") + " · " + fmtDate(h._date)));
       b.append(r1, nm, el("div", "hl", h.headline));
       const km = keyMetric(h);
       if (km) { const k = el("div", "k"); k.append(el("span", "amb", km[0] + " "), el("span", km[2] || null, km[1])); if (num(h.mcap)) k.append(el("span", "mut", "  MCAP " + yen(h.mcap))); b.append(k); }
@@ -800,7 +800,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     if (num(h.adv)) rate.append(el("span", null, advM(h.adv) + "/d"));
     const main = el("div", "row-main");
     const top = el("div", "row-top");
-    top.append(codeBtn(h.code), el("span", "co", h.company), el("span", "mkt", h.market || ""));
+    top.append(codeBtn(h.code), nameEl("span", "co", h.code, h.company), el("span", "mkt", h.market || ""));
     if (cat === "all") top.append(el("span", "tag", c.label));
     else if (h.kind_label && h.kind_label !== c.label) top.append(el("span", "tag", h.kind_label));
     if (h.mine) top.append(el("span", "mine-tag", "MY LIST"));
@@ -848,7 +848,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     const ul = el("ul", "warn-list");
     list.forEach((h) => {
       const li = el("li");
-      li.append(codeBtn(h.code), el("b", null, h.company), el("span", "mut mono", fmtDate(h._date)), el("span", "wl", h.headline || h.kind_label));
+      li.append(codeBtn(h.code), nameEl("b", null, h.code, h.company), el("span", "mut mono", fmtDate(h._date)), el("span", "wl", h.headline || h.kind_label));
       if (h.mine) li.append(el("span", "mine-tag", "MY LIST"));
       const a = link(h.url, "PDF ↗"); if (a) li.append(a);
       ul.append(li);
@@ -923,7 +923,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     const q = ($("cheap-q").value || "").trim().toLowerCase();
     let rows = doc.rows.map((r, i) => Object.assign({}, r, { _base: i + 1 }));
     rows = rows.filter((r) => (cheapMkt === "all" || r.market === cheapMkt) && (!cheapAdv || (num(r.adv) && r.adv >= cheapAdv))
-      && (!q || r.code.toLowerCase().includes(q) || (r.name || "").toLowerCase().includes(q)));
+      && (!q || r.code.toLowerCase().includes(q) || nameHas(r.code, r.name, q)));
     rows.forEach((r) => {
       const ref = r.flags && r.flags.ref_rank;
       r.delta = ref ? ref - r._base : null;
@@ -956,7 +956,7 @@ table.t tr.mine td.nm b { color: var(--key); }
       const td = (v, cls) => { const x = el("td", cls || null); if (v instanceof Node) x.append(v); else x.textContent = v; tr.append(x); return x; };
       td(String(k === "re_index" && dir > 0 ? i + 1 : r._base), "rk");
       td(codeBtn(r.code), "l");
-      const nm = el("td", "nm"); nm.append(el("b", null, r.name)); nm.title = r.name + (r.sector ? " · " + r.sector : ""); tr.append(nm);
+      const nm = el("td", "nm"); nm.append(el("b", null, enName(r.code, r.name))); nm.title = r.name + (r.sector ? " · " + r.sector : ""); tr.append(nm);
       td(r.market || "", "l mut");
       const ix = td(f3(r.re_index), "idx");
       if (num(r.re_index)) { const bar = el("span", "bar"); bar.style.width = Math.max(2, (1 - Math.min(r.re_index, maxBar)) * 40) + "px"; ix.append(bar); }
@@ -1003,7 +1003,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     doc.rows.forEach((r) => {
       const tr = el("tr", mine.has(r.code) ? "mine" : null);
       const c1 = el("td", "l"); c1.append(codeBtn(r.code)); tr.append(c1);
-      const nm = el("td", "nm"); nm.append(el("b", null, r.name)); tr.append(nm);
+      const nm = el("td", "nm"); nm.append(nameEl("b", null, r.code, r.name)); tr.append(nm);
       tr.append(el("td", "l mut", r.market || ""), el("td", "idx", WL[wlList].key[1](r)), el("td", null, yen(r.mcap)), el("td", null, f1(r.pe)), el("td", null, f2(r.pb)),
         el("td", null, f2(r.re_index)), el("td", null, f2(r.ncav_mcap)), el("td", null, f2(r.am_mcap)),
         el("td", null, num(r.treasury_pct) ? r.treasury_pct.toFixed(1) + "%" : "—"),
@@ -1022,7 +1022,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     if (!rows0.length) { t.append(el("caption", "none", "No pre-deal scores yet. The weekly screen fills this table.")); return; }
     if (fr.date) $("pre-meta").textContent = "Scored " + fr.date + " · " + rows0.length + " companies (value lists + your list) · signals from annual reports, TDnet history (3 years) and 5% reports.";
     const q = ($("pre-q").value || "").trim().toLowerCase();
-    const rows = rows0.filter((r) => r.stars >= preMin && (!q || r.code.toLowerCase().includes(q) || (r.name || "").toLowerCase().includes(q)
+    const rows = rows0.filter((r) => r.stars >= preMin && (!q || r.code.toLowerCase().includes(q) || nameHas(r.code, r.name, q)
       || (r.reasons || []).join(" ").toLowerCase().includes(q)));
     const cols = [["★", ""], ["Prob", ""], ["Code", "l"], ["Name", "l"], ["Mkt", "l"], ["RE idx", ""], ["P/B", ""], ["Mcap", ""], ["ADV", ""], ["Signals", "l"], ["Latest event", "l"]];
     const thead = el("thead"), hr = el("tr");
@@ -1034,7 +1034,7 @@ table.t tr.mine td.nm b { color: var(--key); }
       const s = el("td"); s.append(starsEl(r.stars)); tr.append(s);
       tr.append(el("td", "idx", Math.round(r.prob * 100) + "%"));
       const c1 = el("td", "l"); c1.append(codeBtn(r.code)); tr.append(c1);
-      const nm = el("td", "nm"); nm.append(el("b", null, r.name)); tr.append(nm);
+      const nm = el("td", "nm"); nm.append(nameEl("b", null, r.code, r.name)); tr.append(nm);
       tr.append(el("td", "l mut", r.market || ""), el("td", null, f2(r.re_index)), el("td", null, f2(r.pb)), el("td", null, yen(r.mcap)), el("td", null, advM(r.adv)));
       const sg = el("td", "wrapcell"); (r.reasons || []).forEach((x) => sg.append(el("span", "sig", x))); if (!(r.reasons || []).length) sg.textContent = "—"; tr.append(sg);
       const ev = (r.events || [])[0];
@@ -1065,7 +1065,7 @@ table.t tr.mine td.nm b { color: var(--key); }
       const tr = el("tr", r.mine ? "mine" : null);
       const st = el("td", "l"); st.append(el("span", "st " + (r.captured ? "ok" : "miss"), r.captured ? "SURFACED" : "MISSED")); tr.append(st);
       const c1 = el("td", "l"); c1.append(codeBtn(r.code)); tr.append(c1);
-      const nm = el("td", "nm"); nm.append(el("b", null, r.name || "")); tr.append(nm);
+      const nm = el("td", "nm"); nm.append(nameEl("b", null, r.code, r.name)); tr.append(nm);
       tr.append(el("td", "rk", r.ref_rank || "—"), el("td", null, f3(r.ref_index)), el("td", "idx", f3(r.re_index)), el("td", "rk", r.rank || "—"),
         el("td", "l mut", (r.lists || []).join(", ") || "—"));
       const p = el("td"); if (r.frontrun_stars) p.append(starsEl(r.frontrun_stars)); else p.textContent = "—"; tr.append(p);
@@ -1078,12 +1078,15 @@ table.t tr.mine td.nm b { color: var(--key); }
   }
 
   // ---------------------------------------------------------------- PORT
-  let port = null, portDocs = {}, uni = {}, positions = {}, cfg = null, mcp = null, dbRef = null, canAdmin = null;
+  let port = null, portDocs = {}, uni = {}, uniEn = {}, positions = {}, cfg = null, mcp = null, dbRef = null, canAdmin = null;
   let portGroup = store.get("jr-pgroup", "all"), portKind = "all", portSel = null;
   let pSort = { key: "stars", dir: -1 };
   const PCAT = { results: "Results", dividend: "Dividend", buyback: "Buyback", shareholders: "Holders", governance: "Governance",
     corporate: "Corporate", filing: "Filing", news: "News" };
   const portBy = () => new Map(((port && port.holdings) || []).map((h) => [h.code, h]));
+  const enName = (code, jp) => uniEn[code] || jp || "";
+  const nameEl = (tag, cls, code, jp) => { const x = el(tag, cls, enName(code, jp)); if (uniEn[code] && jp) x.title = jp; return x; };
+  const nameHas = (code, jp, q) => (jp || "").toLowerCase().includes(q) || (uniEn[code] || "").toLowerCase().includes(q);
   const isNewItem = (it) => !it.seeded && it.first && port && port.generated_at && it.first >= port.generated_at;
   const pctS = (v, d = 1) => (num(v) ? (v >= 0 ? "+" : "") + (v * 100).toFixed(d) + "%" : "—");
   const yenInt = (v) => (num(v) ? (v < 0 ? "−¥" : "¥") + Math.abs(Math.round(v)).toLocaleString("en-US") : "—");
@@ -1103,7 +1106,7 @@ table.t tr.mine td.nm b { color: var(--key); }
         return;
       }
       const u = uni[p.code] || [];
-      const n = { code: p.code, name: u[0] || "", market: u[1] || "", group: p.group || "held", pending: true, shares: p.shares, cost: p.cost,
+      const n = { code: p.code, name: u[0] || "", en: uniEn[p.code] || "", market: u[1] || "", group: p.group || "held", pending: true, shares: p.shares, cost: p.cost,
         note: p.note, stars: null, rating: null, snap: { price: px }, new: 0 };
       if (num(p.shares) && num(px)) n.value = p.shares * px;
       if (num(p.cost) && num(px)) { n.pnl_pct = px / p.cost - 1; if (num(p.shares)) n.pnl = (px - p.cost) * p.shares; }
@@ -1116,14 +1119,17 @@ table.t tr.mine td.nm b { color: var(--key); }
   const PCOLS = [
     { key: "stars", label: "★", val: (h) => (h.rating ? h.rating.total : -1), fmt: (h) => (h.stars ? starsEl(h.stars) : el("span", "pend-tag", "NEXT REFRESH")) },
     { key: "code", label: "Code", cls: "l", val: (h) => h.code, fmt: (h) => codeBtn(h.code) },
-    { key: "name", label: "Company", cls: "nm", val: (h) => h.name, fmt: (h) => { const x = el("span"); x.append(el("b", null, h.name || "—")); if (h.en) x.title = h.en; return x; } },
+    { key: "name", label: "Company", cls: "nm", val: (h) => h.en || h.name, fmt: (h) => { const x = el("span"); x.append(el("b", null, h.en || h.name || "—")); if (h.en && h.name) x.title = h.name; return x; } },
     { key: "group", label: "Status", cls: "l", val: (h) => h.group, fmt: (h) => el("span", "tag", h.group === "held" ? "HELD" : "WATCH") },
     { key: "price", label: "Last", val: (h) => (h.snap || {}).price, fmt: (h) => (num((h.snap || {}).price) ? "¥" + h.snap.price.toLocaleString("en-US") : "—") },
     { key: "chg", label: "1D", val: (h) => (h.snap || {}).chg_1d, fmt: (h) => pctS((h.snap || {}).chg_1d), tone: (h) => signCls((h.snap || {}).chg_1d) },
     { key: "value", label: "Value", val: (h) => h.value, fmt: (h) => yen(h.value) },
     { key: "weight", label: "Wt", val: (h) => h.weight, fmt: (h) => (num(h.weight) ? (h.weight * 100).toFixed(1) + "%" : "—") },
     { key: "pnl", label: "P&L", val: (h) => h.pnl_pct, fmt: (h) => pctS(h.pnl_pct), tone: (h) => signCls(h.pnl_pct) },
-    { key: "why", label: "Catalyst", cls: "wrapcell", val: (h) => ((h.rating || {}).why || [""])[0], fmt: (h) => ((h.rating || {}).why || [h.pending ? "researched on the next refresh" : ""])[0] },
+    { key: "why", label: "Catalyst", cls: "wrapcell", val: (h) => ((h.rating || {}).why || [""])[0], fmt: (h) => {
+      const full = ((h.rating || {}).why || [h.pending ? "researched on the next refresh" : ""])[0] || "";
+      const x = el("span", /^no catalyst/.test(full) ? "mut" : null, /^no catalyst/.test(full) ? "none on file" : full.length > 60 ? full.slice(0, 58) + "…" : full);
+      if (full) x.title = full; return x; } },
     { key: "re", label: "RE idx", val: (h) => (h.snap || {}).re_index, fmt: (h) => f2((h.snap || {}).re_index) },
     { key: "pe", label: "P/E", val: (h) => (h.snap || {}).pe, fmt: (h) => f1((h.snap || {}).pe) },
     { key: "pb", label: "P/B", val: (h) => (h.snap || {}).pb, fmt: (h) => f2((h.snap || {}).pb) },
@@ -1182,7 +1188,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     const li = el("li");
     li.append(el("span", "fd", it.date ? it.date.slice(5) : "—"));
     const b = el("div", "fb"), top = el("div", "ft");
-    if (showCo) { const c = el("button", "fco", it.code + " " + ((portBy().get(it.code) || {}).name || "")); c.type = "button"; c.addEventListener("click", () => { portSel = it.code; renderPort(); }); top.append(c); }
+    if (showCo) { const ph = portBy().get(it.code) || {}; const c = el("button", "fco", it.code + " " + (ph.en || ph.name || "")); c.type = "button"; c.addEventListener("click", () => { portSel = it.code; renderPort(); }); top.append(c); }
     const tg = el("span", "tag", it.kind === "news" ? (it.src || "News").slice(0, 16) : (PCAT[it.cat] || "Filing") + (it.src && /EDINET/.test(it.src) ? " · EDINET" : ""));
     top.append(tg);
     if (isNewItem(it)) top.append(el("span", "new-tag", "NEW"));
@@ -1197,7 +1203,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   }
   function renderFeed() {
     const ph = portSel ? holdingsMerged().find((h) => h.code === portSel) : null;
-    $("feed-title").textContent = ph ? "Filings & news · " + ph.code + " " + (ph.name || "") : "Filings & news · every holding";
+    $("feed-title").textContent = ph ? "Filings & news · " + ph.code + " " + (ph.en || ph.name || "") : "Filings & news · every holding";
     $("feed-all").hidden = !ph;
     let list = ph ? ((portDocs[ph.code] || {}).items || []).map((it) => Object.assign({ code: ph.code }, it)) : ((port && port.feed) || []);
     if (portKind !== "all") list = list.filter((it) => (portKind === "news" ? it.kind === "news" : it.kind !== "news"));
@@ -1337,7 +1343,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     const d = $("des");
     d.replaceChildren();
     const h = el("div", "des-h");
-    h.append(el("span", "code", code + " JT"), el("span", "co", name || "Not in the current data"));
+    h.append(el("span", "code", code + " JT"), name ? nameEl("span", "co", code, name) : el("span", "co", uniEn[code] || "Not in the current data"));
     const mk = (v && v.market) || (f && f.market) || (hs[0] && hs[0].market);
     if (mk) h.append(el("span", "mkt", mk));
     if (m && m.mine) h.append(el("span", "mine-tag", "MY LIST"));
@@ -1416,7 +1422,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     ((fr && fr.rows) || []).forEach((r) => { if (!seen.has(r.code)) seen.set(r.code, r.name); });
     ((port && port.holdings) || []).forEach((h) => { if (!seen.has(h.code)) seen.set(h.code, h.name); });
     Object.entries(uni).forEach(([c, u]) => { if (!seen.has(c)) seen.set(c, u[0]); });
-    [...seen.entries()].slice(0, 4500).forEach(([c, n]) => { const o = el("option"); o.value = c; o.label = n; dl.append(o); });
+    [...seen.entries()].slice(0, 4500).forEach(([c, n]) => { const o = el("option"); o.value = c; o.label = uniEn[c] ? uniEn[c] + " · " + n : n; dl.append(o); });
   }
   $("cmd").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1427,9 +1433,9 @@ table.t tr.mine td.nm b { color: var(--key); }
     if (viewCmd) { showView(viewCmd); $("cmd-in").value = ""; return; }
     if (/^[0-9][0-9A-Z]{3}$/.test(q)) { openDes(q); $("cmd-in").value = ""; return; }
     const ql = raw.toLowerCase();
-    const hit = ((wl.re_netnet || {}).rows || []).find((r) => (r.name || "").toLowerCase().includes(ql)) || items.find((h) => (h.company || "").toLowerCase().includes(ql))
-      || ((fr && fr.rows) || []).find((r) => (r.name || "").toLowerCase().includes(ql))
-      || (Object.entries(uni).find(([, u]) => (u[0] || "").toLowerCase().includes(ql)) || []).map((x, i) => (i === 0 ? { code: x } : null))[0];
+    const hit = ((wl.re_netnet || {}).rows || []).find((r) => nameHas(r.code, r.name, ql)) || items.find((h) => nameHas(h.code, h.company, ql))
+      || ((fr && fr.rows) || []).find((r) => nameHas(r.code, r.name, ql))
+      || (Object.entries(uni).find(([c, u]) => nameHas(c, u[0], ql)) || []).map((x, i) => (i === 0 ? { code: x } : null))[0];
     if (hit) { openDes(hit.code); $("cmd-in").value = ""; }
   });
   document.addEventListener("keydown", (e) => {
@@ -1503,7 +1509,11 @@ table.t tr.mine td.nm b { color: var(--key); }
       snap.docs.forEach((d) => { const x = d.data(); if (x && x.code) positions[x.code] = x; });
       renderPort();
     }, () => {});
-    db.collection("universe").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "names"); uni = d ? (d.data().rows || {}) : {}; renderPort(); }, () => {});
+    db.collection("universe").onSnapshot((snap) => {
+      const d = snap.docs.find((x) => x.id === "names"), e = snap.docs.find((x) => x.id === "en");
+      uni = d ? (d.data().rows || {}) : {}; uniEn = e ? (e.data().rows || {}) : {};
+      renderAll();
+    }, () => {});
     db.doc("config/refresh").onSnapshot((snap) => { cfg = snap.exists ? snap.data() : null; renderRefresh(); }, () => {});
     renderRefresh();
   })();
