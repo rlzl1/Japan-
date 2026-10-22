@@ -185,6 +185,11 @@ def cmd_daily(args, ctx, edinet):
     n = restore_store(ctx.store, db)
     ctx.store.save()
     print(f"restored {n} companies' fundamentals from the page's database")
+    runs_dir = Path(args.state) / "runs"
+    for p in collection_files(db, "runs"):     # earlier radar days: the portfolio's catalysts come from them
+        if not (runs_dir / p.name).exists():
+            d = _json.loads(p.read_text())
+            ctx.store.write_json(f"runs/{p.name}", d.get("data") if isinstance(d.get("data"), dict) and "version" in d else d)
     if not ctx.value_tags:
         ctx.value_tags, ctx.value_rows = load_value_tags(db)
     today = today_jst()
@@ -231,9 +236,10 @@ def cmd_batches(args, ctx):
     deletes = []
     if args.db_dir:
         exported = {p.stem for p in out_db.glob("*.json")}
-        for p in collection_files(args.db_dir, "portfolio"):
-            if f"portfolio__{p.stem}" not in exported:
-                deletes.append(f"portfolio/{p.stem}")      # a holding that was removed
+        for coll in ("portfolio", "cache"):            # a holding that was removed; a re-bucketed cache document
+            for p in collection_files(args.db_dir, coll):
+                if f"{coll}__{p.stem}" not in exported:
+                    deletes.append(f"{coll}/{p.stem}")
     batches = plan_batches(out_db, args.db_dir, versions, deletes)
     path = Path(args.state) / "out" / "batches.json"
     path.write_text(_json.dumps(batches, ensure_ascii=False, indent=1))

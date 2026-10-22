@@ -86,7 +86,8 @@ class Http:
                 r = self.session.get(url, params=params, timeout=self.timeout, headers=headers)
             except requests.RequestException as e:  # network blip: back off and retry
                 err = e
-                time.sleep(2 ** (attempt + 1))
+                if attempt < self.retries - 1:
+                    time.sleep(2 ** (attempt + 1))
                 continue
             if r.status_code == 200:
                 if store:
@@ -99,7 +100,8 @@ class Http:
                 return None
             if r.status_code in (429, 500, 502, 503, 504):
                 retry_after = r.headers.get("Retry-After")
-                time.sleep(float(retry_after) if retry_after and retry_after.isdigit() else 2 ** (attempt + 1))
+                if attempt < self.retries - 1:      # no pause after the last attempt
+                    time.sleep(float(retry_after) if retry_after and retry_after.isdigit() else 2 ** (attempt + 1))
                 err = HttpError(url, r.status_code, r.text)
                 continue
             raise HttpError(url, r.status_code, r.text)

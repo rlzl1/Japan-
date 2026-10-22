@@ -10,12 +10,14 @@ writes back only what changed, in pinned batches built by `plan_batches`.
 from __future__ import annotations
 
 import json
+import zlib
 from pathlib import Path
 from typing import Optional
 
 from .store import Store
 
-CHUNK_BYTES = 200_000
+BUCKETS = 48
+CHUNK_BYTES = 230_000
 BATCH_BYTES = 900_000
 BATCH_DOCS = 50
 SLIM_DROP = {"officers_shares", "interest_bearing_debt", "inventories"}
@@ -49,10 +51,15 @@ def restore_store(store: Store, db_dir: Optional[str | Path]) -> int:
     return n
 
 
-def store_chunks(store: Store) -> dict[str, dict]:
-    """The fundamentals store as documents under the database's 256 KiB cap."""
+def store_chunks(store: Store, buckets: int = BUCKETS) -> dict[str, dict]:
+    """The fundamentals store as documents under the database's 256 KiB cap.
+
+    Each company always lands in the same document (a hash of its code), so a day's new filings rewrite only the
+    documents that hold those companies; the bucket count doubles if one ever outgrows the cap.
+    """
     recs = store._load_fund()
-    chunks, cur, size, idx = {}, {}, 0, 0
+    chunks: dict[str, dict] = {}
+    sizes: dict[str, int] = {}
     for code in sorted(recs):
         rec = {}
         ann = recs[code].get("annual")
@@ -60,15 +67,12 @@ def store_chunks(store: Store) -> dict[str, dict]:
             if not v or (slot == "latest" and ann and v.get("source") == ann.get("source")):
                 continue          # the annual report is also the latest: store it once
             rec[slot] = _slim(v, keep_holders=slot == "annual" or not ann)
-        b = len(json.dumps(rec, ensure_ascii=False, separators=(",", ":")).encode())
-        if cur and size + b > CHUNK_BYTES:
-            chunks[f"fund_{idx:02d}"] = dict(recs=cur)
-            cur, size, idx = {}, 0, idx + 1
-        cur[code] = rec
-        size += b
-    if cur:
-        chunks[f"fund_{idx:02d}"] = dict(recs=cur)
-    return chunks
+        key = f"fund_{zlib.crc32(code.encode()) % buckets:02d}"
+        chunks.setdefault(key, dict(recs={}))["recs"][code] = rec
+        sizes[key] = sizes.get(key, 0) + len(json.dumps(rec, ensure_ascii=False, separators=(",", ":")).encode())
+    if sizes and max(sizes.values()) > CHUNK_BYTES:
+        return store_chunks(store, buckets * 2)
+    return dict(sorted(chunks.items()))
 
 
 def _slim(v: dict, keep_holders: bool) -> dict:

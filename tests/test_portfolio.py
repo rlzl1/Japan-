@@ -62,3 +62,42 @@ def test_plan_batches_skips_unchanged_and_pins(tmp_path):
     (db / "portfolio" / "summary.json").write_text(json.dumps({"a": 1}))
     b = plan_batches(out, db, {"portfolio/summary": 7})
     assert len(b) == 1 and len(b[0]) == 1 and b[0][0]["if_version"] == 7 and b[0][0]["doc_id"] == "summary"
+
+
+def test_store_chunks_stable_buckets_and_round_trip(tmp_path):
+    from jpscreen.dbsync import restore_store, store_chunks
+    from jpscreen.store import Store
+    s = Store(tmp_path / "a")
+    recs = s._load_fund()
+    for i in range(300):
+        recs[f"{1300 + i}"] = {"annual": {"source": f"edinet:S{i}", "filed": "2026-06-27", "cash": 1.5e9 + i,
+                                          "major_holders": [{"name": "x" * 60, "pct": 12.3456}] * 10}}
+    recs["1300"]["latest"] = dict(recs["1300"]["annual"])           # latest == annual: stored once
+    a = store_chunks(s)
+    assert all(len(v["recs"]) for v in a.values()) and "latest" not in a[next(k for k, v in a.items() if "1300" in v["recs"])]["recs"]["1300"]
+    recs["1450"]["annual"]["cash"] = 9e9                              # one company changes: one document changes
+    b = store_chunks(s)
+    assert sum(a[k] != b[k] for k in a) == 1 and set(a) == set(b)
+    db = tmp_path / "db" / "cache"; db.mkdir(parents=True)
+    for k, v in b.items():
+        (db / f"{k}.json").write_text(json.dumps(v))
+    s2 = Store(tmp_path / "b")
+    assert restore_store(s2, tmp_path / "db") == 300 and store_chunks(s2) == b
+    h = s2._load_fund()["1301"]["annual"]["major_holders"]
+    assert len(h) == 8 and len(h[0]["name"]) == 40 and h[0]["pct"] == 12.35
+
+
+def test_news_noise():
+    from jpscreen.news import is_noise
+    noise = ["本日の【ボリンジャー|±3σブレイク】引け 上抜け= 35 銘柄 下抜け= 9 銘柄 (9月18日)",
+             "★本日の【サプライズ決算】速報 (10月22日) (訂正)", "本日の注目個別銘柄:シライ電子、ソフトバンクG、コメ兵HDなど",
+             "上方修正“先回り”、27年3月期【業績上振れ】候補〔第2弾〕 <成長株特集>",
+             "<みんかぶ・個人投資家の予想から>=「買い予想数上昇」3位に佐藤食品", "金下建設(株)【1897】:決算情報"]
+    for t in noise:
+        assert is_noise(dict(kind="news", ja=t, src="Kabutan")), t
+    for t in ["金下建、今期経常を一転54%増益に上方修正", "佐藤食品は高い、株式分割を好感", "イサムが後場大幅高、価格改定効果で26年3月期業績は計画上振れ",
+              "佐藤食品について、光通信(株)は保有割合が増加したと報告 [変更報告書No.1]"]:
+        assert not is_noise(dict(kind="news", ja=t, src="Kabutan")), t
+    assert is_noise(dict(kind="news", ja="佐藤食品工業 サトウのごはん", src="もぐナビ"))
+    assert not is_noise(dict(kind="news", ja="イサム塗料滋賀工場、落雷で出荷一時停止", src="LOGISTICS TODAY"))
+    assert not is_noise(dict(kind="filing", ja="本日の開示", src="TDnet"))

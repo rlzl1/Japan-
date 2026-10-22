@@ -20,7 +20,7 @@ from typing import Optional
 
 from .classify import CAT_LABEL
 from .frontrun import history_signals, score
-from .news import filing_cat, google_news, kabutan_news, short_name, title_en
+from .news import filing_cat, google_news, is_noise, kabutan_news, short_name, title_en
 from .radar import Context
 from .rating import days_between, holding_rating, standing_catalysts
 from .util import JST, nfkc, norm_code, today_jst
@@ -116,7 +116,7 @@ def build(ctx: Context, holdings: list[dict], runs: list[dict], frontrun_rows: l
         snap = _snapshot(q, f, row)
         # ---- feed items: carry over what was seen before
         old = {it["id"]: it for it in (prev.get(code) or {}).get("items") or []}
-        items = dict(old)
+        items = {k: it for k, it in old.items() if not is_noise(it)}
         fresh = []
         for it in kabutan_news(ctx.tdnet.http, code) + _tdnet_items(ctx, code) + edinet_by.get(code, []) + \
                 google_news(ctx.tdnet.http, short_name(name)):

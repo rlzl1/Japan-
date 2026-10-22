@@ -54,7 +54,7 @@ def kabutan_news(http: Http, code: str, ttl: float = 3 * 3600) -> list[dict]:
                         date=tm.group(1), kind="filing" if filing else "news", ja=nfkc(title)[:200],
                         cat=KABU_CAT.get(label, "news") if not filing else "filing", url=url,
                         src="TDnet" if filing else "Kabutan"))
-    return out
+    return [it for it in out if not is_noise(it)]
 
 
 def google_news(http: Http, name: str, ttl: float = 3 * 3600, days: int = 120) -> list[dict]:
@@ -80,7 +80,7 @@ def google_news(http: Http, name: str, ttl: float = 3 * 3600, days: int = 120) -
             continue
         if src and title.endswith(" - " + src):
             title = title[: -len(src) - 3]
-        if name not in nfkc(title) or PORTAL_SRC.search(src) or re.search(r"【\d[0-9A-Z]{3}】|株価・株式情報|掲示板|企業情報\(|決算情報$|適時開示|日経会社情報|\[\d[0-9A-Z]{3}\]:", nfkc(title)):
+        if name not in nfkc(title) or is_noise(dict(kind="news", ja=nfkc(title), src=src)):
             continue            # quote/portal pages, not stories
         gid = re.sub(r"\W", "", link.split("/")[-1])[-40:]
         out.append(dict(id="g" + gid, date=d.isoformat(), kind="news", ja=nfkc(title)[:200], cat="news", url=link,
@@ -88,7 +88,21 @@ def google_news(http: Http, name: str, ttl: float = 3 * 3600, days: int = 120) -
     return out
 
 
-PORTAL_SRC = re.compile(r"Yahoo!?ファイナンス|みんかぶ|株探|かぶたん|IR BANK|Kabutan|minkabu|株マップ|バフェット・コード|ifis|Ullet|"
+# Market-wide columns and screens that merely list the stock, quote/portal pages, consumer reviews, mirrors of filings
+NOISE = re.compile(r"^★?本日の|【ボリンジャー|ゴールデンクロス|デッドクロス|個人投資家の予想から|特集\s*[>＞]|注目個別銘柄|"
+                   r"ストップ(高|安)銘柄|上抜け=|大引け[)）]|前引け[)）]|ランキング|クチコミ|感想・|株価・株式情報|掲示板|"
+                   r"企業情報\(|決算情報$|【\d[0-9A-Z]{3}】|適時開示|日経会社情報|\[\d[0-9A-Z]{3}\]:")
+
+
+def is_noise(it: dict) -> bool:
+    """A news item that is not a story about this company (filings are never noise)."""
+    if it.get("kind") != "news":
+        return False
+    src = it.get("src") or ""
+    return bool(NOISE.search(nfkc(it.get("ja") or ""))) or (src != "Kabutan" and bool(PORTAL_SRC.search(src)))
+
+
+PORTAL_SRC = re.compile(r"Yahoo!?ファイナンス|みんかぶ|株探|かぶたん|IR BANK|Kabutan|minkabu|株マップ|バフェット・コード|ifis|Ullet|もぐナビ|"
                         r"株予報|日経会社情報|会社四季報オンライン.*銘柄", re.I)
 
 

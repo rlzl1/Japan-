@@ -1078,7 +1078,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   }
 
   // ---------------------------------------------------------------- PORT
-  let port = null, portDocs = {}, uni = {}, positions = {}, cfg = null, mcp = null, dbRef = null;
+  let port = null, portDocs = {}, uni = {}, positions = {}, cfg = null, mcp = null, dbRef = null, canAdmin = null;
   let portGroup = store.get("jr-pgroup", "all"), portKind = "all", portSel = null;
   let pSort = { key: "stars", dir: -1 };
   const PCAT = { results: "Results", dividend: "Dividend", buyback: "Buyback", shareholders: "Holders", governance: "Governance",
@@ -1165,7 +1165,8 @@ table.t tr.mine td.nm b { color: var(--key); }
     rows.sort((a, b) => { const va = col.val(a), vb = col.val(b); if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1;
       return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * pSort.dir; });
     const tb = el("tbody");
-    if (!rows.length) { const tr = el("tr"), td = el("td", "l mut", port ? "Nothing here. Add a code above." : "Your holdings from the Tokyo Filings Tracker load here at the next refresh. Add any code above."); td.colSpan = PCOLS.length; tr.append(td); tb.append(tr); }
+    if (!rows.length) { const tr = el("tr"), td = el("td", "l mut", canAdmin === false ? "The portfolio is private: only this page's owner and editors can see it."
+      : port ? "Nothing here. Add a code above." : "Your holdings from the Tokyo Filings Tracker load here at the next refresh. Add any code above."); td.colSpan = PCOLS.length; tr.append(td); tb.append(tr); }
     rows.forEach((h) => {
       const tr = el("tr", portSel === h.code ? "mine" : null);
       tr.style.cursor = "pointer";
@@ -1244,14 +1245,14 @@ table.t tr.mine td.nm b { color: var(--key); }
   function refreshRunning() {
     if (!cfg || (cfg.state !== "running" && cfg.state !== "queued")) return false;
     const t = Date.parse(cfg.startedAt || cfg.requestedAt || "");
-    return isFinite(t) && Date.now() - t < 60 * 60e3;
+    return isFinite(t) && Date.now() - t < 90 * 60e3;
   }
   function renderRefresh(note) {
     const b = $("refresh-btn"), st = $("refresh-st");
     const busy = refreshRunning();
-    b.disabled = busy || !dbRef;
+    b.disabled = busy || !dbRef || canAdmin === false;
     b.textContent = busy ? "REFRESHING…" : "REFRESH";
-    st.textContent = note || (busy ? "Running since " + (cfg.startedAt || cfg.requestedAt || "").slice(11, 16) + " UTC: scan, portfolio and translations, usually 10–20 min."
+    st.textContent = note || (busy ? "Running since " + (cfg.startedAt || cfg.requestedAt || "").slice(11, 16) + " UTC: scan, portfolio and translations, usually 15–30 min (longer on Mondays, when the whole market is re-screened)."
       : cfg ? "Last refresh " + ((cfg.lastRunAt || "").replace("T", " ").slice(0, 16) || "never") + " UTC" + (cfg.lastSummary ? " · " + cfg.lastSummary : "") + (cfg.schedule ? " · " + cfg.schedule : "")
       : "Refresh task not set up yet.");
   }
@@ -1507,5 +1508,12 @@ table.t tr.mine td.nm b { color: var(--key); }
     renderRefresh();
   })();
   (async () => { mcp = await window.claude?.use?.("mcp"); })();
+  (async () => {
+    // holdings and the refresh are for the owner and editors (the database rules hide them from everyone else)
+    const u = await window.claude?.use?.("user");
+    canAdmin = u ? await u.canEdit() : null;
+    if (canAdmin === false) { $("add-form").hidden = true; $("refresh-btn").hidden = true; }
+    renderPort(); renderRefresh();
+  })();
 })();
 </script>

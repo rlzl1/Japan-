@@ -122,7 +122,18 @@ class YahooJapan:
             try:
                 html = self.http.get_text(YJ_QUOTE.format(sym=sym), ttl=self.ttl, allow_404=True)
             except HttpError as e:
+                # Yahoo's quote page fails intermittently (HTTP 500) while the history page still answers:
+                # price, date and liquidity then come from the history; shares and valuation from the bulk ranking
                 log.info("quote %s: %s", sym, e)
+                html = None
+                if history and e.status >= 500:
+                    q = Quote(code=code, symbol=sym)
+                    try:
+                        self._add_history(q, sym)
+                    except HttpError:
+                        pass
+                    if q.history:
+                        return q
                 continue
             if not html:
                 continue
@@ -130,21 +141,24 @@ class YahooJapan:
             if not q:
                 continue
             if history:
-                try:
-                    h = self.http.get_text(YJ_HISTORY.format(sym=sym), ttl=self.ttl, allow_404=True)
-                    rows = parse_history_page(h or "")
-                except HttpError:
-                    rows = []
-                q.history = rows
-                if rows:
-                    q.price_date = rows[0][0]
-                    if not q.price:
-                        q.price = rows[0][1]
-                    vals = [c * v for _, c, v in rows[:20]]
-                    q.adv = sum(vals) / len(vals) if vals else None
-                    q.days_traded = sum(1 for _, _, v in rows[:20] if v > 0)
+                self._add_history(q, sym)
             return q
         return None
+
+    def _add_history(self, q: Quote, sym: str) -> None:
+        try:
+            h = self.http.get_text(YJ_HISTORY.format(sym=sym), ttl=self.ttl, allow_404=True)
+            rows = parse_history_page(h or "")
+        except HttpError:
+            rows = []
+        q.history = rows
+        if rows:
+            q.price_date = rows[0][0]
+            if not q.price:
+                q.price = rows[0][1]
+            vals = [c * v for _, c, v in rows[:20]]
+            q.adv = sum(vals) / len(vals) if vals else None
+            q.days_traded = sum(1 for _, _, v in rows[:20] if v > 0)
 
 
 YJ_RANKING = "https://finance.yahoo.co.jp/stocks/ranking/marketCapitalHigh"
@@ -197,8 +211,26 @@ class PriceBook:
         if refresh or code not in self.quotes:
             q = self.yj.quote(code, symbols)
             if q:
-                self.quotes[code] = q
+                self._put(code, q)
         return self.quotes.get(code)
+
+    def _put(self, code: str, q: Quote) -> None:
+        """Store a fresh quote; what the quote page did not give (it failed, or the history page answered alone) is
+        filled from the previous quote: names and share counts as they were, per-share ratios re-priced."""
+        old = self.quotes.get(code)
+        if old is not None and q.shares_issued is None:
+            for k in ("name", "shares_issued", "market_label", "eps", "bps", "dps", "year_high", "year_low", "next_results"):
+                if getattr(q, k) in (None, "") and getattr(old, k) not in (None, ""):
+                    setattr(q, k, getattr(old, k))
+            if q.price:
+                if q.shares_issued:
+                    q.mcap_issued = q.price * q.shares_issued
+                q.per = round(q.price / q.eps, 2) if q.eps and q.eps > 0 else q.per
+                q.pbr = round(q.price / q.bps, 2) if q.bps and q.bps > 0 else q.pbr
+                q.div_yield = round(q.dps / q.price * 100, 2) if q.dps else q.div_yield
+                q.year_high = max(q.year_high or 0, q.price) or None
+                q.year_low = min(q.year_low or q.price, q.price)
+        self.quotes[code] = q
 
     def prefetch(self, wanted: dict[str, list[str]], workers: int = 4) -> None:
         """Fetch many quotes in parallel (each worker has its own session; responses share the disk cache)."""
@@ -210,8 +242,8 @@ class PriceBook:
 
         def work(item):
             code, syms = item
-            yj = YahooJapan(Http(cache_dir=http0.cache_dir, min_interval=http0.min_interval, offline=http0.offline),
-                            ttl=self.yj.ttl)
+            yj = YahooJapan(Http(cache_dir=http0.cache_dir, min_interval=http0.min_interval, offline=http0.offline,
+                                 retries=2), ttl=self.yj.ttl)
             try:
                 return code, yj.quote(code, syms)
             except Exception:
@@ -220,7 +252,7 @@ class PriceBook:
         with ThreadPoolExecutor(max_workers=workers) as ex:
             for code, q in ex.map(work, todo.items()):
                 if q:
-                    self.quotes[code] = q
+                    self._put(code, q)
 
     def load_bulk(self, http: Http) -> int:
         """Fill quotes for every listed stock (price, shares, market cap; no history) from the ranking pages."""
