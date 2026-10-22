@@ -13,6 +13,9 @@ python -m jpscreen edinet           # whole-market fundamentals from EDINET (nee
 python -m jpscreen all              # edinet (if key) + value + radar + export
 ```
 
+Live dashboard: https://claude.ai/artifact/MBnsootP72UWgTs4ZZaLz9 (reads the `state/out/db/*.json`
+documents, written to its database after each run).
+
 Outputs land in `state/`: `runs/<date>.json`, `value.json`, `frontrun.json`, `coverage.json`,
 `out/japan_radar.xlsx` (one tab per view) and `out/db/*.json` (the documents the dashboard reads).
 The dashboard page is `dashboard/japan_radar.html`.
