@@ -54,8 +54,12 @@ def store_chunks(store: Store) -> dict[str, dict]:
     recs = store._load_fund()
     chunks, cur, size, idx = {}, {}, 0, 0
     for code in sorted(recs):
-        rec = {k: {kk: vv for kk, vv in (v or {}).items() if kk not in SLIM_DROP and vv not in (None, [], "")}
-               for k, v in recs[code].items() if v}
+        rec = {}
+        ann = recs[code].get("annual")
+        for slot, v in recs[code].items():
+            if not v or (slot == "latest" and ann and v.get("source") == ann.get("source")):
+                continue          # the annual report is also the latest: store it once
+            rec[slot] = _slim(v, keep_holders=slot == "annual" or not ann)
         b = len(json.dumps(rec, ensure_ascii=False, separators=(",", ":")).encode())
         if cur and size + b > CHUNK_BYTES:
             chunks[f"fund_{idx:02d}"] = dict(recs=cur)
@@ -65,6 +69,23 @@ def store_chunks(store: Store) -> dict[str, dict]:
     if cur:
         chunks[f"fund_{idx:02d}"] = dict(recs=cur)
     return chunks
+
+
+def _slim(v: dict, keep_holders: bool) -> dict:
+    out = {}
+    for k, x in v.items():
+        if k in SLIM_DROP or x in (None, [], ""):
+            continue
+        if k == "major_holders":
+            if not keep_holders:
+                continue
+            x = [{"name": (h.get("name") or "")[:40], "pct": round(h.get("pct") or 0, 2)} for h in x[:8]]
+        elif isinstance(x, float):
+            x = round(x) if abs(x) >= 1000 else round(x, 4)
+        elif isinstance(x, list):
+            x = [round(y) if isinstance(y, float) and abs(y) >= 1000 else y for y in x]
+        out[k] = x
+    return out
 
 
 def load_value_tags(db_dir: Optional[str | Path]) -> tuple[dict, dict]:

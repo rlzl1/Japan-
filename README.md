@@ -11,6 +11,8 @@ python -m jpscreen radar --days 21  # backfill (TDnet keeps PDFs ~31 days)
 python -m jpscreen value            # value lists + pre-deal radar + watchlist coverage
 python -m jpscreen edinet           # whole-market fundamentals from EDINET (needs EDINET_API_KEY)
 python -m jpscreen all              # edinet (if key) + value + radar + export
+python -m jpscreen port --tracker-dir DIR [--positions-dir DIR]   # portfolio tab
+python -m jpscreen daily --db-dir DIR --tracker-dir DIR --versions FILE   # what the scheduled refresh runs
 ```
 
 Live dashboard: https://claude.ai/artifact/MBnsootP72UWgTs4ZZaLz9 (reads the `state/out/db/*.json`
@@ -25,13 +27,16 @@ The dashboard page is `dashboard/japan_radar.html`.
 | Key | View | What it shows |
 |---|---|---|
 | 1 | RADAR | Rated disclosures by category, top ideas, warnings |
-| 2 | CHEAP | 不動産込みネットネット指数 ranking, cheapest first (same columns as the reference ranking) |
-| 3 | VALUE | Net-nets, cash-rich, deep value, treasury piles, listed subsidiaries |
-| 4 | PRE-DEAL | Probability-ranked buy-out candidates with the signals behind each |
-| 5 | MY LIST | Every name in `data/watchlist.csv` and the reference ranking: surfaced or missed, and why |
-| 6 | HELP | Stars, categories, formulas, priors |
+| 2 | PORT | Your holdings (Tokyo Filings Tracker + positions added on the page): P&L, rating, every filing and story |
+| 3 | CHEAP | 不動産込みネットネット指数 ranking, cheapest first (same columns as the reference ranking) |
+| 4 | VALUE | Net-nets, cash-rich, deep value, treasury piles, listed subsidiaries |
+| 5 | PRE-DEAL | Probability-ranked buy-out candidates with the signals behind each |
+| 6 | COVERAGE | Every name in `data/watchlist.csv` and the reference ranking: surfaced or missed, and why |
+| 7 | HELP | Stars, categories, formulas, priors |
 
-Type a code (`4624`) or a name in the command line to open the security panel; `1`–`6` switch views.
+Type a code (`4624`) or a name in the command line to open the security panel; `1`–`7` switch views, `P` opens
+the portfolio. Add a holding on the PORT tab (code, held/watching, shares, average cost): it shows at once with
+its last price and is researched by the next refresh (or press REFRESH).
 
 ## RE net-net index (CHEAP)
 
@@ -59,11 +64,21 @@ Assets: asset sales and hidden-asset gains. Warnings: distress, dilution, withdr
 
 ## Stars
 
-Ported from the Korean `rate()`: a base per category, then the size of the edge (spread to the bid,
-buyback vs market cap, yield, gain vs market cap), +1 on a value list, −½/−1½ for thin trading
-(¥15M / ¥3M a day), −1 for exchange designations, capped at 2 when the company fails the profit and
-debt filters (special situations are priced on deal terms and skip that cap). Bases are the Korean
-backtest's until a Japanese backtest replaces them.
+The Korea Filing Radar's current system: **1 + edge + value − risk** (5★ 4.75+, 4★ 3.75+, 3★ 2.75+, 2★ 1.75+).
+Edge is what the event is worth on its own numbers (spread to a going-private bid, exchange ratio vs market,
+buyback vs market cap, after-tax gain on a property sale, a special committee or proposal, listing pressure on a
+cheap stock); value is the single best of the classic tests, with the RE net-net index added for Japan; risk is
+thin trading, exchange designations and warnings. Workouts (bids, squeeze-outs, share exchanges, liquidations) are
+priced on the deal, so value is not counted; elsewhere value counts only up to the edge plus one. Holdings use
+the same parts, with edge from radar events on the company (120 days) or standing catalysts.
+
+## Scheduled refresh
+
+Each weekday a fresh session restores state from the dashboard's database (`cache/fund_*` holds the
+fundamentals of every listed company), reads new EDINET filings, scans TDnet, rebuilds the portfolio (holdings
+from the Tokyo Filings Tracker plus positions added on the page), translates new titles, and writes back only
+the documents that changed (`state/out/batches.json`, pinned to their versions). Mondays also rerun the
+whole-market value screen. The REFRESH button on the PORT tab starts the same task on demand.
 
 ## Data sources
 
@@ -75,7 +90,8 @@ backtest's until a Japanese backtest replaces them.
 | Listed universe | JPX list + EDINET code list (incl. Nagoya/Fukuoka/Sapporo-only) | none |
 | Prices, market caps, daily trading value | Yahoo! Finance Japan | none |
 
-Without an EDINET key the radar runs fully; the value screen covers the reference ranking, your
+The EDINET key is read from the `EDINET_API_KEY` environment variable (or a gitignored `.env` locally); it is
+never committed. Without it the radar runs fully; the value screen covers the reference ranking, your
 watchlist and every company whose earnings release has been harvested (no rental-property notes, so
 their real-estate value is land × 50% only). Register at https://api.edinet-fsa.go.jp/ and export
 `EDINET_API_KEY` for the whole market.
