@@ -1,0 +1,1150 @@
+<title>Japan Filing Radar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a terminal screen. Command line + function keys on top, a status tape, then one pane per function:
+   RADAR (rated filings, category rail), CHEAP (the RE net-net ranking), VALUE lists, PRE-DEAL (front-run),
+   MY LIST (coverage of your names), HELP. Amber = labels and keys, white = data, blue = headers and links,
+   green/red = good/bad numbers only. Deliberately one dark look, like the terminal it borrows from. */
+:root {
+  color-scheme: dark;
+  --bg: #000000;
+  --panel: #0a0d11;
+  --raise: #121820;
+  --line: #222a33;
+  --line-hi: #34404c;
+  --ink: #e9e7e2;
+  --muted: #8b939c;
+  --amber: #ffa028;
+  --amber-dim: #8a5a1c;
+  --key: #f2c94c;
+  --key-ink: #1a1300;
+  --blue: #5fb0ff;
+  --pos: #39d07a;
+  --neg: #ff5a4f;
+  --warn-bg: #2a1210;
+  --sel: #13202e;
+  --special: #c79bff;
+  --returns: #39d07a;
+  --business: #5fb0ff;
+  --assets: #ffa028;
+  --warning: #ff5a4f;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-body: "IBM Plex Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--bg); }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 48px;
+}
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 12px; }
+.wrap > *, .pane > *, .desk > *, .list > * { min-width: 0; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--key); outline-offset: 1px; }
+.mono { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.pos { color: var(--pos); } .neg { color: var(--neg); } .mut { color: var(--muted); } .amb { color: var(--amber); }
+
+/* ---- top: brand + command line */
+.top { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px 12px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand b { font-family: var(--font-data); font-weight: 600; letter-spacing: 0.06em; background: var(--amber); color: #000;
+  padding: 3px 8px; font-size: 0.95rem; }
+.brand h1 { margin: 0; font-size: 1.05rem; font-weight: 600; letter-spacing: 0.02em; color: var(--amber); text-transform: uppercase;
+  font-family: var(--font-data); }
+.cmd { flex: 1 1 320px; display: flex; align-items: center; gap: 0; border: 1px solid var(--amber-dim); background: var(--panel); min-width: 0; }
+.cmd label { font-family: var(--font-data); color: var(--amber); padding: 0 8px; font-size: 0.8rem; white-space: nowrap; }
+.cmd input { flex: 1; min-width: 0; background: transparent; border: 0; padding: 7px 4px; font-family: var(--font-data); font-size: 0.92rem;
+  color: var(--key); text-transform: uppercase; }
+.cmd input::placeholder { color: var(--muted); text-transform: none; }
+.cmd input:focus { outline: none; }
+.cmd button { background: var(--key); color: var(--key-ink); border: 0; font-family: var(--font-data); font-weight: 600; padding: 0 12px;
+  cursor: pointer; align-self: stretch; }
+
+/* ---- function keys */
+.fkeys { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.fk { display: inline-flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line-hi); padding: 5px 10px 5px 5px;
+  cursor: pointer; font-family: var(--font-data); font-size: 0.82rem; color: var(--ink); letter-spacing: 0.04em; }
+.fk i { font-style: normal; background: var(--key); color: var(--key-ink); padding: 0 5px; font-weight: 600; }
+.fk[aria-selected="true"] { background: var(--amber); color: #000; border-color: var(--amber); }
+.fk[aria-selected="true"] i { background: #000; color: var(--amber); }
+.fk span.n { color: var(--muted); }
+.fk[aria-selected="true"] span.n { color: #3a2400; }
+
+/* ---- status tape */
+.tape { display: flex; flex-wrap: wrap; gap: 4px 18px; font-family: var(--font-data); font-size: 0.76rem; color: var(--muted);
+  font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.03em; }
+.tape b { color: var(--ink); font-weight: 500; }
+.tape .live b { color: var(--pos); }
+
+.pane { display: grid; gap: 12px; }
+.ph { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.ph h2 { margin: 0; font-family: var(--font-data); font-size: 0.86rem; font-weight: 600; color: var(--amber); letter-spacing: 0.06em; text-transform: uppercase; }
+.ph h2 small { color: var(--muted); font-weight: 400; margin-left: 8px; letter-spacing: 0; text-transform: none; font-family: var(--font-body); }
+.ph p { margin: 0; font-size: 0.8rem; color: var(--muted); max-width: 80ch; }
+
+/* ---- stars */
+.stars { display: inline-flex; gap: 0; font-size: 0.86rem; line-height: 1; letter-spacing: 0; white-space: nowrap; }
+.stars i { font-style: normal; color: #2b333c; }
+.stars i.on { color: var(--key); }
+
+/* ---- controls */
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-family: var(--font-data); font-size: 0.76rem; }
+.ctl { display: flex; align-items: center; gap: 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.seg { display: inline-flex; border: 1px solid var(--line-hi); }
+.seg button { background: var(--panel); border: 0; border-right: 1px solid var(--line-hi); padding: 3px 9px; cursor: pointer; font-family: var(--font-data);
+  font-size: 0.76rem; color: var(--ink); white-space: nowrap; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--key); color: var(--key-ink); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); }
+.checks label { display: flex; align-items: center; gap: 5px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.checks input { accent-color: var(--key); }
+.search { background: var(--panel); border: 1px solid var(--line-hi); padding: 3px 8px; font-family: var(--font-data); font-size: 0.78rem; min-width: 0; width: 14rem; max-width: 100%; }
+
+/* ---- top ideas */
+.ideas { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 8px; }
+.idea { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--g, var(--amber)); padding: 8px 10px; display: grid; gap: 4px;
+  cursor: pointer; text-align: left; min-width: 0; }
+.idea:hover { border-color: var(--line-hi); background: var(--raise); }
+.idea .r1 { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.idea .co { font-weight: 600; font-size: 0.92rem; overflow-wrap: anywhere; }
+.idea .sub { font-family: var(--font-data); font-size: 0.72rem; color: var(--muted); }
+.idea .hl { font-size: 0.8rem; overflow-wrap: anywhere; }
+.idea .k { font-family: var(--font-data); font-size: 0.76rem; }
+
+/* ---- desk */
+.desk { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 12px; align-items: start; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 8px); display: grid; gap: 10px; background: var(--panel); border: 1px solid var(--line); padding: 8px 6px; }
+.rail-group { display: grid; gap: 0; }
+.rail-group h3 { margin: 0; padding: 2px 6px 3px; font-family: var(--font-data); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--g); }
+.cat-btn { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; background: none; border: 0; padding: 3px 6px;
+  font-size: 0.8rem; text-align: left; cursor: pointer; color: var(--ink); }
+.cat-btn:hover { background: var(--raise); }
+.cat-btn span:last-child { font-family: var(--font-data); font-size: 0.74rem; color: var(--muted); }
+.cat-btn.zero { color: #59616a; }
+.cat-btn[aria-pressed="true"] { background: var(--sel); color: var(--g); box-shadow: inset 2px 0 0 var(--g); }
+.cat-btn[aria-pressed="true"] span:last-child { color: var(--g); }
+.g-special { --g: var(--special); } .g-returns { --g: var(--returns); } .g-business { --g: var(--business); }
+.g-assets { --g: var(--assets); } .g-warning { --g: var(--warning); } .g-all { --g: var(--amber); }
+
+.list { display: grid; gap: 0; border: 1px solid var(--line); background: var(--panel); }
+.list-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 6px 10px; border-bottom: 1px solid var(--line);
+  font-family: var(--font-data); font-size: 0.78rem; }
+.list-head b { color: var(--amber); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.cat-note { margin: 0; padding: 6px 10px; font-size: 0.78rem; color: var(--muted); border-bottom: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr); gap: 2px 10px; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row:hover { background: var(--raise); }
+.row.fail { opacity: 0.6; }
+.row.flash { background: var(--sel); }
+.row-rate { display: grid; gap: 3px; align-content: start; font-family: var(--font-data); font-size: 0.7rem; color: var(--muted); }
+.row-main { display: grid; gap: 3px; min-width: 0; }
+.row-top { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
+.code { font-family: var(--font-data); font-size: 0.8rem; color: var(--key); cursor: pointer; background: none; border: 0; padding: 0; }
+.code:hover { text-decoration: underline; }
+.co { font-weight: 600; font-size: 0.9rem; }
+.mkt { font-family: var(--font-data); font-size: 0.7rem; color: var(--muted); border: 1px solid var(--line-hi); padding: 0 4px; }
+.tag { font-family: var(--font-data); font-size: 0.68rem; padding: 0 5px; color: var(--g); border: 1px solid var(--g); white-space: nowrap; text-transform: uppercase; letter-spacing: 0.03em; }
+.mine-tag { font-family: var(--font-data); font-size: 0.68rem; padding: 0 5px; background: var(--key); color: var(--key-ink); font-weight: 600; }
+.wtag { font-family: var(--font-data); font-size: 0.68rem; padding: 0 5px; color: var(--pos); border: 1px solid #1f5a39; }
+.date { margin-left: auto; font-family: var(--font-data); font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+.headline { font-size: 0.86rem; overflow-wrap: anywhere; }
+.jp { font-size: 0.74rem; color: var(--muted); overflow-wrap: anywhere; }
+.metrics { display: flex; flex-wrap: wrap; gap: 1px 14px; font-family: var(--font-data); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
+.metrics span { white-space: nowrap; }
+.metrics em { font-style: normal; color: var(--amber); }
+.why { display: flex; flex-wrap: wrap; gap: 3px 5px; margin: 0; padding: 0; list-style: none; }
+.why li { font-size: 0.72rem; padding: 0 6px; background: var(--raise); border: 1px solid var(--line); }
+.why li.minus { color: var(--neg); border-color: #4a1d1a; }
+.fin { font-family: var(--font-data); font-size: 0.7rem; color: var(--muted); overflow-wrap: anywhere; }
+.reasons { font-size: 0.74rem; color: var(--neg); }
+.row-foot { display: flex; flex-wrap: wrap; gap: 2px 14px; font-family: var(--font-data); font-size: 0.74rem; }
+.more { justify-self: start; margin: 8px 10px; background: var(--raise); border: 1px solid var(--line-hi); padding: 4px 12px; cursor: pointer;
+  font-family: var(--font-data); font-size: 0.76rem; }
+.none { padding: 14px 10px; color: var(--muted); font-size: 0.84rem; }
+.notes { padding: 6px 10px; font-family: var(--font-data); font-size: 0.7rem; color: var(--muted); border-top: 1px solid var(--line); }
+.warn-list { list-style: none; margin: 0; padding: 0; }
+.warn-list li { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; padding: 5px 10px; border-bottom: 1px solid var(--line); font-size: 0.82rem; }
+.warn-list .wl { color: var(--neg); overflow-wrap: anywhere; min-width: 0; }
+.warn-list a { margin-left: auto; font-family: var(--font-data); font-size: 0.74rem; }
+
+/* ---- tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); }
+table.t { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+table.t th, table.t td { padding: 4px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line);
+  font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+table.t thead th { position: sticky; top: 0; background: #0f141a; color: var(--blue); font-weight: 500; font-size: 0.7rem; letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--line-hi); vertical-align: bottom; }
+table.t thead th small { display: block; color: var(--muted); font-size: 0.64rem; }
+table.t thead th.sortable { cursor: pointer; user-select: none; }
+table.t thead th.sortable:hover { color: var(--key); }
+table.t thead th[aria-sort="ascending"]::after { content: " ▲"; color: var(--key); }
+table.t thead th[aria-sort="descending"]::after { content: " ▼"; color: var(--key); }
+table.t tbody tr:hover td { background: var(--raise); }
+table.t tbody tr:nth-child(even) td { background: #05080b; }
+table.t tbody tr:nth-child(even):hover td { background: var(--raise); }
+table.t td.l, table.t th.l { text-align: left; }
+table.t td.nm { text-align: left; font-family: var(--font-body); max-width: 22rem; overflow: hidden; text-overflow: ellipsis; }
+table.t td.nm b { font-weight: 600; }
+table.t td.idx { font-weight: 600; color: var(--pos); }
+table.t td.rk { color: var(--blue); }
+table.t td.wrapcell { white-space: normal; text-align: left; font-family: var(--font-body); font-size: 0.74rem; min-width: 16rem; color: var(--muted); }
+table.t tr.mine td { box-shadow: inset 0 0 0 9999px rgba(242, 201, 76, 0.06); }
+table.t tr.mine td.nm b { color: var(--key); }
+.bar { display: inline-block; height: 7px; background: var(--pos); vertical-align: middle; margin-left: 6px; opacity: 0.75; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { border: 1px solid var(--line-hi); background: var(--panel); padding: 3px 10px; cursor: pointer; font-family: var(--font-data); font-size: 0.76rem; }
+.chip[aria-pressed="true"] { background: var(--key); color: var(--key-ink); border-color: var(--key); }
+.sig { display: inline-block; font-size: 0.7rem; padding: 0 5px; margin: 1px 3px 1px 0; border: 1px solid var(--line-hi); white-space: nowrap; }
+.foot { font-size: 0.72rem; color: var(--muted); max-width: 110ch; margin: 0; }
+.foot b { color: var(--ink); font-weight: 500; }
+.st { font-family: var(--font-data); font-size: 0.7rem; padding: 0 5px; }
+.st.ok { color: var(--pos); border: 1px solid #1f5a39; }
+.st.miss { color: var(--neg); border: 1px solid #4a1d1a; }
+
+/* ---- empty */
+.empty { border: 1px dashed var(--line-hi); padding: 16px; display: grid; gap: 6px; background: var(--panel); }
+.empty h3 { margin: 0; font-family: var(--font-data); font-size: 0.82rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.06em; }
+.empty p { margin: 0; color: var(--muted); max-width: 70ch; font-size: 0.84rem; }
+
+/* ---- help */
+.help { display: grid; gap: 16px; }
+.help section { display: grid; gap: 6px; }
+.help h3 { margin: 0; font-family: var(--font-data); font-size: 0.8rem; color: var(--g); text-transform: uppercase; letter-spacing: 0.06em; }
+.help dl { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 5px 16px; margin: 0; font-size: 0.82rem; }
+.help dt { font-weight: 600; }
+.help dd { margin: 0; min-width: 0; color: #cfd3d6; }
+.help p { margin: 0; font-size: 0.82rem; max-width: 90ch; color: #cfd3d6; }
+.help code { font-family: var(--font-data); color: var(--key); font-size: 0.78rem; }
+.ja { font-size: 0.74rem; color: var(--muted); }
+
+/* ---- security panel (DES) */
+.des-back { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 20; }
+.des { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); background: var(--bg); border-left: 1px solid var(--amber-dim); z-index: 21;
+  overflow-y: auto; padding: calc(env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) 16px;
+  display: grid; gap: 12px; align-content: start; }
+.des-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.des-h .code { font-size: 1rem; }
+.des-h .co { font-size: 1.1rem; }
+.des-x { margin-left: auto; background: var(--raise); border: 1px solid var(--line-hi); padding: 2px 10px; cursor: pointer; font-family: var(--font-data); font-size: 0.76rem; }
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.kv div { background: var(--panel); padding: 5px 8px; display: grid; gap: 1px; }
+.kv span { font-family: var(--font-data); font-size: 0.64rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.04em; }
+.kv b { font-family: var(--font-data); font-weight: 500; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.des h4 { margin: 0; font-family: var(--font-data); font-size: 0.74rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.06em; }
+.des ul.ev { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.8rem; }
+.des ul.ev li { display: grid; grid-template-columns: 6.2rem minmax(0, 1fr); gap: 8px; }
+.des ul.ev li span { font-family: var(--font-data); font-size: 0.74rem; color: var(--muted); }
+.des .links { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--font-data); font-size: 0.76rem; }
+
+@media (max-width: 860px) {
+  .desk { grid-template-columns: minmax(0, 1fr); }
+  .rail { position: static; display: flex; gap: 4px; overflow-x: auto; padding: 6px; }
+  .rail-group { display: contents; }
+  .rail-group h3 { display: none; }
+  .cat-btn { width: auto; flex: 0 0 auto; white-space: nowrap; border: 1px solid var(--line-hi); }
+  .cat-btn.zero:not([aria-pressed="true"]) { display: none; }
+}
+@media (max-width: 560px) {
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .row-rate { display: flex; gap: 10px; align-items: center; }
+  .date { margin-left: 0; }
+  .help dl { grid-template-columns: 1fr; gap: 2px 0; }
+  .help dd { margin-bottom: 6px; }
+  .brand h1 { font-size: 0.9rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .row.flash { transition: background-color 0.6s; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><b>JP</b><h1>Japan Filing Radar</h1></div>
+    <form class="cmd" id="cmd" autocomplete="off">
+      <label for="cmd-in">CMD&gt;</label>
+      <input id="cmd-in" list="cmd-list" placeholder="4624, a name, or CHEAP · PRE · RADAR" spellcheck="false">
+      <datalist id="cmd-list"></datalist>
+      <button type="submit">GO</button>
+    </form>
+  </header>
+
+  <nav class="fkeys" role="tablist" aria-label="Functions">
+    <button class="fk" role="tab" data-v="radar" aria-selected="true"><i>1</i>RADAR <span class="n" id="n-radar"></span></button>
+    <button class="fk" role="tab" data-v="cheap" aria-selected="false"><i>2</i>CHEAP <span class="n" id="n-cheap"></span></button>
+    <button class="fk" role="tab" data-v="value" aria-selected="false"><i>3</i>VALUE</button>
+    <button class="fk" role="tab" data-v="pre" aria-selected="false"><i>4</i>PRE-DEAL <span class="n" id="n-pre"></span></button>
+    <button class="fk" role="tab" data-v="mine" aria-selected="false"><i>5</i>MY LIST <span class="n" id="n-mine"></span></button>
+    <button class="fk" role="tab" data-v="help" aria-selected="false"><i>6</i>HELP</button>
+  </nav>
+
+  <div class="tape" aria-label="Status">
+    <span>TDnet <b id="st-date">—</b></span>
+    <span>Filings read <b id="st-read">—</b></span>
+    <span>4–5★ <b id="st-top">—</b></span>
+    <span>Warnings <b id="st-warn">—</b></span>
+    <span>Prices <b id="st-px">—</b></span>
+    <span>Universe <b id="st-uni">—</b></span>
+    <span class="live" id="st-live">Feed <b>connecting…</b></span>
+  </div>
+
+  <!-- ===================== RADAR ===================== -->
+  <section class="pane" id="radar">
+    <div class="ph"><h2>Top ideas<small id="ideas-sub">4 and 5 stars</small></h2><p>Every TDnet disclosure sorted into a special-situation category and rated one to five stars. Click a code for the security panel.</p></div>
+    <div class="ideas" id="ideas"><div class="none">Waiting for the first scan.</div></div>
+    <div class="controls">
+      <div class="ctl"><span>Period</span>
+        <div class="seg" id="seg-period" role="group" aria-label="Period">
+          <button type="button" data-v="1">Latest</button><button type="button" data-v="7">7D</button><button type="button" data-v="30">30D</button><button type="button" data-v="all">All</button>
+        </div>
+      </div>
+      <div class="ctl"><span>Rating</span>
+        <div class="seg" id="seg-stars" role="group" aria-label="Minimum stars">
+          <button type="button" data-v="0">All</button><button type="button" data-v="3">3★+</button><button type="button" data-v="4">4★+</button><button type="button" data-v="5">5★</button>
+        </div>
+      </div>
+      <div class="checks">
+        <label for="only-mine"><input type="checkbox" id="only-mine"> My list only</label>
+        <label for="only-cheap"><input type="checkbox" id="only-cheap"> Value-list names only</label>
+        <label for="show-failed"><input type="checkbox" id="show-failed"> Show filtered out</label>
+      </div>
+    </div>
+    <div class="desk">
+      <nav class="rail" id="rail" aria-label="Categories"></nav>
+      <main class="list" id="list" aria-live="polite">
+        <div class="empty"><h3>Waiting for the first scan</h3><p>Each weekday's scan posts here: every TDnet disclosure sorted into its category and rated, with the numbers behind the rating and a link to the PDF.</p></div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ===================== CHEAP ===================== -->
+  <section class="pane" id="cheap" hidden>
+    <div class="ph"><h2>不動産込みネットネット指数<small>Real-estate net-net index · lower is cheaper · below 1 = market cap under asset value</small></h2><p id="cheap-meta">Waiting for the weekly screen…</p></div>
+    <div class="controls">
+      <div class="ctl"><span>Market</span>
+        <div class="seg" id="seg-mkt" role="group" aria-label="Market">
+          <button type="button" data-v="all">All</button><button type="button" data-v="東P">東P</button><button type="button" data-v="東S">東S</button><button type="button" data-v="東G">東G</button><button type="button" data-v="地方">地方</button>
+        </div>
+      </div>
+      <div class="ctl"><span>Liquidity</span>
+        <div class="seg" id="seg-adv" role="group" aria-label="Minimum daily trading value">
+          <button type="button" data-v="0">Any</button><button type="button" data-v="1000000">¥1M+</button><button type="button" data-v="5000000">¥5M+</button><button type="button" data-v="20000000">¥20M+</button>
+        </div>
+      </div>
+      <input class="search" id="cheap-q" type="search" placeholder="Filter code or name" aria-label="Filter code or name">
+    </div>
+    <div class="table-wrap"><table class="t" id="cheap-t"></table></div>
+    <p class="foot"><b>指数</b> = 時価総額 ÷（正味流動資産 + 賃貸等不動産の開示時価 + 非重複土地簿価 × 50%）。<b>正味流動資産</b> = 現預金 + 売上債権 + 有価証券 + 投資有価証券 − 負債合計 − 非支配株主持分（棚卸資産は含めず）。<b>不動産・土地</b> = 賃貸等不動産の時価（建物含む）と土地加算の合計。△はマイナス。Index = market cap ÷ (net current assets + rental real estate at disclosed fair value + 50% of land not already counted). Net current assets = cash + trade receivables + securities + investment securities − all liabilities − minority interests; inventories excluded. Tax and selling costs not deducted. Δ REF compares with the 2026-10-09 reference ranking. Not a recommendation to buy or sell.</p>
+  </section>
+
+  <!-- ===================== VALUE ===================== -->
+  <section class="pane" id="value" hidden>
+    <div class="ph"><h2>Value lists<small id="wl-meta">Waiting for the weekly screen…</small></h2></div>
+    <div class="chips" role="group" aria-label="List">
+      <button class="chip wl-btn" data-l="net_net" aria-pressed="true">Net-nets</button>
+      <button class="chip wl-btn" data-l="cash_rich" aria-pressed="false">Cash-rich</button>
+      <button class="chip wl-btn" data-l="deep_value" aria-pressed="false">Deep value</button>
+      <button class="chip wl-btn" data-l="treasury" aria-pressed="false">Treasury piles</button>
+      <button class="chip wl-btn" data-l="parent_sub" aria-pressed="false">Listed subsidiaries</button>
+    </div>
+    <p class="foot" id="wl-desc"></p>
+    <div id="wl-body"></div>
+  </section>
+
+  <!-- ===================== PRE-DEAL ===================== -->
+  <section class="pane" id="pre" hidden>
+    <div class="ph"><h2>Pre-deal radar<small>who gets bid, bought out or forced to act next</small></h2><p id="pre-meta">Cheap companies scored on the signals that came before recent Japanese take-privates: a parent at 50–90%, founder control, activists on the register, listing-criteria breaches, special committees, press reports, accumulation toward ⅓.</p></div>
+    <div class="controls">
+      <div class="ctl"><span>Rating</span>
+        <div class="seg" id="seg-pre" role="group" aria-label="Minimum stars">
+          <button type="button" data-v="0">All</button><button type="button" data-v="3">3★+</button><button type="button" data-v="4">4★+</button>
+        </div>
+      </div>
+      <input class="search" id="pre-q" type="search" placeholder="Filter code, name or signal" aria-label="Filter pre-deal list">
+    </div>
+    <div class="table-wrap"><table class="t" id="pre-t"></table></div>
+    <p class="foot">Probability = 1 − Π(1 − pᵢ) over the signals present; the priors pᵢ are judgment calls listed in HELP and are not yet backtested. Use it to rank where to dig, not as a forecast.</p>
+  </section>
+
+  <!-- ===================== MY LIST ===================== -->
+  <section class="pane" id="mine" hidden>
+    <div class="ph"><h2>My list<small>your names and the reference ranking: does the screen surface them?</small></h2><p id="mine-meta"></p></div>
+    <div class="table-wrap"><table class="t" id="mine-t"></table></div>
+  </section>
+
+  <!-- ===================== HELP ===================== -->
+  <section class="pane help" id="help" hidden>
+    <p>The radar reads every TDnet disclosure each weekday evening (Mondays include the weekend) and rates it; the value screen and pre-deal radar run weekly over every listed company. Prices are Yahoo! Finance Japan closes, usually the same day, so check the live price before acting. Nothing here is investment advice.</p>
+    <section class="g-all">
+      <h3>Stars</h3>
+      <dl>
+        <dt><span class="stars"><i class="on">★</i><i class="on">★</i><i class="on">★</i><i class="on">★</i><i class="on">★</i></span></dt><dd>Act today: a priced edge (a going-private bid with a spread, a large buyback at a small company, cash back worth a large part of the price) on a stock you can trade.</dd>
+        <dt><span class="stars"><i class="on">★</i><i class="on">★</i><i class="on">★</i><i class="on">★</i><i>★</i></span></dt><dd>Strong: open the filing and do the work this week.</dd>
+        <dt><span class="stars"><i class="on">★</i><i class="on">★</i><i class="on">★</i><i>★</i><i>★</i></span></dt><dd>Worth a look: real event, edge not yet sized or partly priced in.</dd>
+        <dt><span class="stars"><i class="on">★</i><i class="on">★</i><i>★</i><i>★</i><i>★</i></span></dt><dd>For the record: routine, small, or the company fails the profit and debt filters.</dd>
+        <dt><span class="stars"><i class="on">★</i><i>★</i><i>★</i><i>★</i><i>★</i></span></dt><dd>Usually bad for minority shareholders, or untradeable.</dd>
+      </dl>
+      <p>Same rules as the Korea Filing Radar. Each category starts from a base and moves with the size of the edge: spread to the bid (≥10% +2, ≥5% +1, none −1), going private +1, a bid already raised +½, a self-tender −½; buybacks worth ≥5% of market cap +1½, ≥2% +1, off-market ToSTNeT blocks −½; dividends at ≥7% yield +1½. A stock on a value list gains a star; otherwise an RE net-net index under 0.8, net cash ≥ 0.5× market cap or a P/E ≤ 8 add ½. Losses or debt above equity cost ½ star; thin trading costs ½ (under ¥15M a day) or 1½ (under ¥3M); exchange designations (監理・特別注意) cost a star. Companies that fail the profit and debt filters are capped at two stars, except special situations, which are priced on deal terms. Bases come from the Korean 12-month backtest until the Japanese backtest replaces them. Every rating lists its reasons.</p>
+    </section>
+    <section class="g-special">
+      <h3>Special situations</h3>
+      <dl>
+        <dt>Tender offers &amp; going-private</dt><dd>Third-party bids, MBOs, parent buy-outs, self-tenders and squeeze-outs, with the bid against the last close, the end date, partial or full, and the board's view. <span class="ja">公開買付け · MBO · 完全子会社化 · 自己株式の公開買付け · 株式併合 · 売渡請求</span></dd>
+        <dt>Sale processes &amp; strategic reviews</dt><dd>Answers to press reports, special committees, strategic reviews, unsolicited proposals, integration talks. Denials are dropped. <span class="ja">一部報道について · 特別委員会 · ストラテジック・レビュー · 買収提案</span></dd>
+        <dt>Change of controlling shareholder</dt><dd>A holder crossing 10%, a new parent, a large holder selling down. <span class="ja">主要株主・親会社・その他の関係会社の異動</span></dd>
+        <dt>Mergers &amp; share exchanges</dt><dd>With the exchange ratio turned into an implied price against the market. <span class="ja">株式交換 · 合併 · 経営統合 · 株式移転</span></dd>
+        <dt>Spin-offs &amp; demergers</dt><dd>Spin-offs that hand you the new shares, told apart from moving a business into a subsidiary. <span class="ja">スピンオフ · 株式分配 · 会社分割 · 持株会社体制</span></dd>
+        <dt>Activists &amp; new 5% stakes</dt><dd>Known activists (Murakami funds, Strategic Capital, Oasis, Elliott, Dalton/NAVF, 3D…), accumulation toward ⅓ without a bid, takeover-defence fights; 5% reports from EDINET when a key is set. <span class="ja">大量保有報告書 · 公開買付けに準ずる行為 · 大規模買付行為</span></dd>
+        <dt>Shareholder proposals &amp; proxy fights</dt><dd><span class="ja">株主提案 · 臨時株主総会の招集請求 · 委任状勧誘</span></dd>
+        <dt>Control lawsuits</dt><dd><span class="ja">仮処分 · 差止 · 検査役</span></dd>
+        <dt>Liquidations</dt><dd>The listed company itself dissolving, with the expected distribution or net current assets against the price. <span class="ja">解散 · 清算 · 残余財産の分配</span></dd>
+        <dt>Reverse mergers</dt><dd>Unlisted businesses entering through a listed shell. <span class="ja">不適当な合併等 · 実質的存続性 · テクニカル上場</span></dd>
+        <dt>Listing-criteria pressure</dt><dd>Companies that do not meet TSE maintenance criteria (tradable share ratio, tradable market cap, net assets): MBOs, parent buy-outs and market changes cluster here; also moves up to Prime. <span class="ja">上場維持基準 · 改善期間 · 市場区分の変更</span></dd>
+      </dl>
+    </section>
+    <section class="g-returns">
+      <h3>Shareholder returns</h3>
+      <dl>
+        <dt>Buybacks</dt><dd>Sized against market cap; ToSTNeT blocks and purchases from one holder marked. <span class="ja">自己株式の取得 · ToSTNeT-3</span></dd>
+        <dt>Share cancellations</dt><dd><span class="ja">自己株式の消却</span></dd>
+        <dt>Dividends</dt><dd>Raises against last year, specials and first dividends; routine payments are dropped. <span class="ja">剰余金の配当 · 配当予想の修正 · 特別配当 · 記念配当</span></dd>
+        <dt>Value-up &amp; return plans</dt><dd>TSE "cost of capital and share price" plans, payout/DOE targets, cross-holding sales. <span class="ja">資本コストや株価を意識した経営 · 株主還元方針 · DOE</span></dd>
+      </dl>
+    </section>
+    <section class="g-assets">
+      <h3>Business and assets</h3>
+      <dl>
+        <dt>Guidance raised</dt><dd>Forecast revisions with the operating-profit change; cuts move to Warnings for watched names. <span class="ja">業績予想の修正</span></dd>
+        <dt>Big orders</dt><dd><span class="ja">大口受注</span></dd>
+        <dt>Asset sales &amp; hidden-asset gains</dt><dd>Land, buildings, cross-shareholdings or businesses sold, with the gain against market cap: the net-net discount being realised. <span class="ja">固定資産の譲渡 · 投資有価証券売却益 · 特別利益</span></dd>
+      </dl>
+    </section>
+    <section class="g-warning">
+      <h3>Warnings (not rated)</h3>
+      <dl>
+        <dt>Distress &amp; delisting</dt><dd><span class="ja">継続企業の前提 · 債務超過 · 民事再生 · 監理銘柄 · 特別注意銘柄 · 不適切な会計</span></dd>
+        <dt>Dilution</dt><dd>Shown for value-list and watched names. <span class="ja">第三者割当 · MSワラント · 公募増資 · 売出し</span></dd>
+        <dt>Withdrawn deals &amp; other</dt><dd><span class="ja">撤回 · 中止 · 子会社上場 · 減配 · 業績下方修正</span></dd>
+      </dl>
+    </section>
+    <section class="g-assets">
+      <h3>Value lists (weekly)</h3>
+      <dl>
+        <dt>RE net-net (CHEAP)</dt><dd>Market cap ÷ (net current assets + rental real estate at fair value + 50% of non-overlapping land) below 1. The exact definition of the 不動産込みネットネット指数 ranking.</dd>
+        <dt>Net-nets</dt><dd>Current assets minus all liabilities above market cap.</dd>
+        <dt>Cash-rich</dt><dd>Cash + securities + investment securities − all liabilities ≥ 70% of market cap, profitable last year.</dd>
+        <dt>Deep value</dt><dd>P/E ≤ 6 and P/B ≤ 0.6, profitable in at least 4 of the last 5 years.</dd>
+        <dt>Treasury piles</dt><dd>Treasury shares ≥ 10% of issued at P/B ≤ 1.</dd>
+        <dt>Listed subsidiaries</dt><dd>A corporate holder at 50% or more, P/B ≤ 1: parent buy-out candidates.</dd>
+      </dl>
+      <p>Banks, brokers and insurers are left out of the asset lists. Sources: TDnet (via the yanoshin mirror), EDINET annual and semi-annual reports (rental real-estate note, major shareholders), earnings-release XBRL, Yahoo! Finance Japan prices.</p>
+    </section>
+    <section class="g-special">
+      <h3>Pre-deal signals and priors</h3>
+      <dl>
+        <dt>Special committee / strategic review</dt><dd>45%</dd>
+        <dt>Accumulation toward ⅓ / defence fight</dt><dd>30%</dd>
+        <dt>Answered a deal press report</dt><dd>30%</dd>
+        <dt>Listed subsidiary (parent 50–90%)</dt><dd>22%, +10% when below asset value</dd>
+        <dt>Listing criteria not met</dt><dd>22%, +10% when below asset value</dd>
+        <dt>Known activist on the register</dt><dd>18% (Murakami funds +10%)</dd>
+        <dt>Founder/family ≥ 25%</dt><dd>15%, +12% at P/B &lt; 0.8 and under ¥50bn, +8% if the representative director is 70+</dd>
+        <dt>Shareholder proposal</dt><dd>12%</dd>
+        <dt>Self-financing buy-out</dt><dd>10%: net cash ≥ 0.5× market cap and RE index &lt; 0.7</dd>
+        <dt>Deep asset discount</dt><dd>8%: RE index &lt; 0.5</dd>
+      </dl>
+    </section>
+  </section>
+</div>
+
+<div class="des-back" id="des-back" hidden></div>
+<aside class="des" id="des" hidden aria-label="Security panel"></aside>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  };
+
+  // ---------------------------------------------------------------- categories (same ids as the Korean radar)
+  const GROUPS = [["special", "Special situations"], ["returns", "Shareholder returns"], ["business", "Business"],
+    ["assets", "Assets"], ["warning", "Warnings"]];
+  const CATS = [
+    ["tender", "Tender offers & going-private", "special", "Bids for the company's shares. The spread is the bid against the last close; check whether the bid is partial and when it ends."],
+    ["sale_process", "Sale processes & strategic reviews", "special", "Press-report answers, special committees and strategic reviews. These come before bids and MBOs."],
+    ["control", "Change of controlling shareholder", "special", "A holder crossing 10%, a new parent, or a large holder selling down."],
+    ["mna", "Mergers & share exchanges", "special", "The exchange ratio times the acquirer's price gives the implied value; above the market, that is the arbitrage."],
+    ["spinoff", "Spin-offs & demergers", "special", "Spin-offs hand you the new shares; a move into a holding-company structure keeps them inside."],
+    ["activist", "Activists & new 5% stakes", "special", "Known activists, accumulation toward one third without a bid, takeover-defence fights."],
+    ["proxy", "Shareholder proposals & proxy fights", "special", "Shareholders proposing directors, payouts or buybacks, or calling a meeting."],
+    ["lawsuit", "Control lawsuits", "special", "Injunctions and suits over control, poison pills or the shareholder meeting."],
+    ["liquidation", "Liquidations", "special", "The listed company is dissolving: compare the expected distribution or net current assets with the price."],
+    ["capital_return", "Cash capital returns", "special", "Capital returned to shareholders from surplus."],
+    ["backdoor", "Reverse mergers & backdoor listings", "special", "Unlisted businesses entering through a listed company."],
+    ["listing", "Listing-criteria pressure", "special", "Companies short of TSE maintenance criteria, plus market changes. Going private is one of the ways out."],
+    ["buyback", "Buybacks", "returns", "Sized against market cap; buybacks that cancel the shares count for more."],
+    ["cancellation", "Share cancellations", "returns", "Treasury shares cancelled, as a share of issued shares."],
+    ["dividend", "Dividends", "returns", "Raises, specials and first dividends. Routine payments are dropped."],
+    ["valueup", "Value-up & return plans", "returns", "TSE cost-of-capital plans, payout and DOE targets, cross-holding sales."],
+    ["insider", "Controlling shareholder buying", "returns", "The owning family or parent buying shares."],
+    ["contract", "Big orders", "business", "Orders large against revenue."],
+    ["guidance", "Guidance raised", "business", "Forecast revisions up, with the operating-profit change."],
+    ["asset_sale", "Asset sales & hidden-asset gains", "assets", "Land, buildings, cross-holdings or businesses sold, with the gain against market cap."],
+    ["w_distress", "Distress & delisting", "warning", "Shown for every company."],
+    ["w_dilution", "Dilution", "warning", "New shares, warrants and secondary offerings at value-list or watched names."],
+    ["w_other", "Withdrawn deals & other", "warning", "Withdrawn deals, subsidiary IPOs, dividend and forecast cuts."],
+  ];
+  const CAT = Object.fromEntries(CATS.map(([id, label, g, note]) => [id, { id, label, g, note }]));
+  const isWarn = (c) => (CAT[c] || {}).g === "warning";
+  const catOf = (h) => (CAT[h.cat] ? h.cat : (h.signal === "warning" ? "w_other" : "valueup"));
+
+  // ---------------------------------------------------------------- formatting
+  const num = (v) => typeof v === "number" && isFinite(v);
+  function oku(v, d = 1) {
+    if (!num(v)) return "—";
+    const s = Math.abs(v / 1e8).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+    return v < 0 ? "△" + s : s;
+  }
+  function yen(v) {
+    if (!num(v)) return "n/a";
+    const a = Math.abs(v);
+    if (a >= 1e12) return "¥" + (v / 1e12).toFixed(2) + "T";
+    if (a >= 1e8) return "¥" + (v / 1e8).toLocaleString("en-US", { maximumFractionDigits: 1 }) + "億";
+    if (a >= 1e6) return "¥" + (v / 1e6).toFixed(1) + "M";
+    return "¥" + Math.round(v).toLocaleString("en-US");
+  }
+  const advM = (v) => (num(v) ? "¥" + (v / 1e6).toFixed(1) + "M" : "—");
+  const f2 = (v) => (num(v) ? v.toFixed(2) : "—");
+  const f1 = (v) => (num(v) ? v.toFixed(1) : "—");
+  const f3 = (v) => (num(v) ? v.toFixed(3) : "—");
+  const sgn = (v, d = 1) => (num(v) ? (v >= 0 ? "+" : "") + v.toFixed(d) + "%" : null);
+  const pct = (v, d = 1) => (num(v) ? (v * 100).toFixed(d) + "%" : null);
+  const fmtDate = (d) => (d && /^\d{8}$/.test(d) ? d.slice(0, 4) + "-" + d.slice(4, 6) + "-" + d.slice(6) : d || "");
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function starsEl(n) {
+    const s = el("span", "stars");
+    s.setAttribute("role", "img");
+    s.setAttribute("aria-label", n + " of 5 stars");
+    for (let i = 1; i <= 5; i++) s.append(el("i", i <= n ? "on" : null, "★"));
+    return s;
+  }
+  const SAFE = /^https:\/\/(www\.release\.tdnet\.info|disclosure2\.edinet-fsa\.go\.jp|finance\.yahoo\.co\.jp|irbank\.net|kabutan\.jp)\//;
+  function link(url, text) {
+    if (!url || !SAFE.test(url)) return null;
+    const a = el("a", null, text);
+    a.href = url; a.target = "_blank"; a.rel = "noopener";
+    return a;
+  }
+  function codeBtn(code) {
+    const b = el("button", "code", code);
+    b.type = "button";
+    b.addEventListener("click", (e) => { e.stopPropagation(); openDes(code); });
+    return b;
+  }
+  function metric(label, value, cls) {
+    if (value == null) return null;
+    const s = el("span");
+    s.append(el("em", null, label + " "));
+    const v = el("span", cls || null, value);
+    s.append(v);
+    return s;
+  }
+  const signCls = (v) => (num(v) ? (v >= 0 ? "pos" : "neg") : null);
+
+  // ---------------------------------------------------------------- state
+  let runs = [], items = [], latest = null;
+  let wl = {}, wlMeta = null, fr = null, mineDoc = null;
+  let view = "radar";
+  let period = store.get("jr-period", "7");
+  let minStars = Number(store.get("jr-stars", "0")) || 0;
+  let cat = store.get("jr-cat", "all");
+  let onlyMine = store.get("jr-only-mine", "0") === "1";
+  let onlyCheap = store.get("jr-only-cheap", "0") === "1";
+  let showFailed = store.get("jr-show-failed", "0") === "1";
+  let limit = 80;
+  let cheapSort = { key: "re_index", dir: 1 }, cheapMkt = store.get("jr-mkt", "all"), cheapAdv = Number(store.get("jr-adv", "0")) || 0;
+  let preMin = Number(store.get("jr-pre", "0")) || 0;
+  let wlList = store.get("jr-wl", "net_net");
+  if (cat !== "all" && !CAT[cat]) cat = "all";
+  $("only-mine").checked = onlyMine; $("only-cheap").checked = onlyCheap; $("show-failed").checked = showFailed;
+
+  const tagsOf = (code) => ((wl._tags || {})[code]) || [];
+  const mineSet = () => new Set(((mineDoc && mineDoc.rows) || []).filter((r) => r.mine).map((r) => r.code));
+  const nd = (d) => String(d || "").replace(/-/g, "").slice(0, 8);
+  const runEnd = (r) => nd(r.window ? r.window[r.window.length - 1] : r.date);
+  function latestRun() {
+    const sorted = runs.slice().sort((a, b) => (runEnd(b) > runEnd(a) ? 1 : -1));
+    return sorted.find((r) => (r.hits || []).length) || sorted[0] || null;
+  }
+  function dayDiff(a, b) {
+    const t = (d) => Date.UTC(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8));
+    return Math.round((t(a) - t(b)) / 864e5);
+  }
+  function flatten() {
+    const seen = new Map();
+    runs.forEach((r) => (r.hits || []).forEach((h) => {
+      const key = h.id + ":" + h.code;
+      if (seen.has(key)) return;
+      const c = catOf(h);
+      seen.set(key, Object.assign({}, h, { _cat: c, _date: nd(h.date || runEnd(r)), _stars: isWarn(c) ? null : (h.stars ?? null) }));
+    }));
+    items = [...seen.values()];
+    latest = items.reduce((m, h) => (h._date && (!m || h._date > m) ? h._date : m), null);
+  }
+  function inPeriod(h) {
+    if (period === "all" || !latest || !h._date) return true;
+    if (period === "1") { const lr = latestRun(); return lr ? h._date === runEnd(lr) : h._date === latest; }
+    return dayDiff(latest, h._date) < Number(period);
+  }
+  function base(h) {
+    if (!inPeriod(h)) return false;
+    if (onlyMine && !h.mine) return false;
+    if (onlyCheap && !(h.watch && h.watch.length)) return false;
+    if (isWarn(h._cat)) return minStars === 0;
+    if (!showFailed && !h.passes) return false;
+    return (h._stars || 0) >= minStars;
+  }
+  const rank = (a, b) => ((b._stars || 0) - (a._stars || 0)) || ((b.mine ? 1 : 0) - (a.mine ? 1 : 0)) || ((b.score || 0) - (a.score || 0))
+    || ((b._date || "") + (b.time || "") > (a._date || "") + (a.time || "") ? 1 : -1);
+
+  // ---------------------------------------------------------------- radar
+  function renderTape() {
+    const lr = latestRun();
+    if (lr) {
+      $("st-date").textContent = fmtDate(runEnd(lr));
+      $("st-read").textContent = (lr.scanned ?? 0).toLocaleString("en-US");
+      const inLast = items.filter((h) => h._date === runEnd(lr));
+      $("st-top").textContent = String(inLast.filter((h) => (h._stars || 0) >= 4 && h.passes).length);
+      $("st-warn").textContent = String(inLast.filter((h) => isWarn(h._cat)).length);
+    }
+    if (wlMeta) {
+      $("st-px").textContent = wlMeta.price_date || "—";
+      $("st-uni").textContent = (wlMeta.universe || 0).toLocaleString("en-US");
+    }
+    $("n-radar").textContent = items.length ? String(items.filter((h) => !isWarn(h._cat) && h.passes && (h._stars || 0) >= 4).length) : "";
+  }
+  function keyMetric(h) {
+    if (h._cat === "tender" && num(h.premium_pct)) return ["SPREAD", sgn(h.premium_pct), signCls(h.premium_pct)];
+    if (h._cat === "mna" && num(h.appraisal_premium_pct)) return ["IMPLIED", sgn(h.appraisal_premium_pct), signCls(h.appraisal_premium_pct)];
+    if (num(h.buyback_vs_mcap)) return ["BUYBACK", pct(h.buyback_vs_mcap) + " mcap"];
+    if (num(h.gain_vs_mcap)) return ["GAIN", pct(h.gain_vs_mcap) + " mcap"];
+    if (num(h.div_yield) && h._cat === "dividend") return ["YIELD", h.div_yield.toFixed(1) + "%"];
+    if (num(h.re_index)) return ["RE IDX", h.re_index.toFixed(2)];
+    if (num(h.pb)) return ["P/B", h.pb.toFixed(2)];
+    return null;
+  }
+  function renderIdeas() {
+    const box = $("ideas");
+    box.replaceChildren();
+    const top = items.filter((h) => inPeriod(h) && !isWarn(h._cat) && h.passes && (h._stars || 0) >= 4 && (!onlyMine || h.mine))
+      .sort(rank).slice(0, 8);
+    $("ideas-sub").textContent = { "1": "4–5★ in the latest scan", "7": "4–5★, last 7 days", "30": "4–5★, last 30 days", all: "4–5★, all stored scans" }[period];
+    if (!top.length) { box.append(el("div", "none", items.length ? "No 4 or 5-star idea in this period. Widen the period or look through the 3-star list." : "Waiting for the first scan.")); return; }
+    top.forEach((h) => {
+      const c = CAT[h._cat];
+      const b = el("button", "idea g-" + c.g);
+      b.type = "button";
+      const r1 = el("div", "r1");
+      r1.append(starsEl(h._stars), el("span", "tag", c.label));
+      const nm = el("div");
+      nm.append(el("span", "co", h.company + " "), el("span", "sub", h.code + " · " + (h.market || "") + " · " + fmtDate(h._date)));
+      b.append(r1, nm, el("div", "hl", h.headline));
+      const km = keyMetric(h);
+      if (km) { const k = el("div", "k"); k.append(el("span", "amb", km[0] + " "), el("span", km[2] || null, km[1])); if (num(h.mcap)) k.append(el("span", "mut", "  MCAP " + yen(h.mcap))); b.append(k); }
+      b.addEventListener("click", () => jumpTo(h));
+      box.append(b);
+    });
+  }
+  function jumpTo(h) {
+    cat = h._cat; store.set("jr-cat", cat);
+    if ((h._stars || 0) < minStars) { minStars = 0; store.set("jr-stars", "0"); syncSegs(); }
+    limit = 2000;
+    renderDesk();
+    const row = document.querySelector('[data-key="' + CSS.escape(h.id + ":" + h.code) + '"]');
+    if (row) {
+      row.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 1600);
+    }
+  }
+  function renderRail(counts) {
+    const rail = $("rail");
+    rail.replaceChildren();
+    const top = el("div", "rail-group g-all");
+    const all = el("button", "cat-btn");
+    all.type = "button";
+    all.append(el("span", null, "All opportunities"), el("span", null, String(counts.__all || 0)));
+    all.setAttribute("aria-pressed", String(cat === "all"));
+    all.addEventListener("click", () => pick("all"));
+    top.append(all); rail.append(top);
+    GROUPS.forEach(([g, title]) => {
+      const grp = el("div", "rail-group g-" + g);
+      grp.append(el("h3", null, title));
+      CATS.filter((c) => c[2] === g).forEach(([id, label]) => {
+        const n = counts[id] || 0;
+        const b = el("button", "cat-btn" + (n ? "" : " zero"));
+        b.type = "button";
+        b.append(el("span", null, label), el("span", null, String(n)));
+        b.setAttribute("aria-pressed", String(cat === id));
+        b.addEventListener("click", () => pick(id));
+        grp.append(b);
+      });
+      rail.append(grp);
+    });
+  }
+  function pick(id) { cat = id; limit = 80; store.set("jr-cat", cat); renderDesk(); }
+
+  function rowEl(h) {
+    const c = CAT[h._cat];
+    const card = el("article", "row g-" + c.g + (h.passes ? "" : " fail"));
+    card.dataset.key = h.id + ":" + h.code;
+    const rate = el("div", "row-rate");
+    rate.append(starsEl(h._stars || 1));
+    if (num(h.mcap)) rate.append(el("span", null, yen(h.mcap)));
+    if (num(h.adv)) rate.append(el("span", null, advM(h.adv) + "/d"));
+    const main = el("div", "row-main");
+    const top = el("div", "row-top");
+    top.append(codeBtn(h.code), el("span", "co", h.company), el("span", "mkt", h.market || ""));
+    if (cat === "all") top.append(el("span", "tag", c.label));
+    else if (h.kind_label && h.kind_label !== c.label) top.append(el("span", "tag", h.kind_label));
+    if (h.mine) top.append(el("span", "mine-tag", "MY LIST"));
+    (h.watch || []).forEach((w) => top.append(el("span", "wtag", w)));
+    top.append(el("span", "date", fmtDate(h._date) + (h.time ? " " + h.time : "")));
+    main.append(top, el("div", "headline", h.headline));
+    if (h.title) main.append(el("div", "jp", h.title));
+    const m = el("div", "metrics");
+    const km = keyMetric(h);
+    [
+      km && (km[0] === "SPREAD" || km[0] === "IMPLIED") ? metric(km[0], km[1], km[2]) : null,
+      metric("PX", num(h.price) ? "¥" + h.price.toLocaleString("en-US") : null),
+      metric("END", h.end || null),
+      metric("RE IDX", num(h.re_index) ? h.re_index.toFixed(2) : null),
+      metric("P/B", num(h.pb) ? h.pb.toFixed(2) : null),
+      metric("P/E", num(h.pe) ? h.pe.toFixed(1) : null),
+      metric("NET CASH/MCAP", num(h.asset_margin_vs_mcap) ? h.asset_margin_vs_mcap.toFixed(2) + "×" : null),
+      metric("BUYBACK", num(h.buyback_vs_mcap) ? pct(h.buyback_vs_mcap) + " mcap" : null),
+      metric("YIELD", num(h.div_yield) ? h.div_yield.toFixed(1) + "%" : null),
+      metric("GAIN", num(h.gain_vs_mcap) ? pct(h.gain_vs_mcap) + " mcap" : null),
+      metric("DIST/PX", num(h.return_yield) ? h.return_yield.toFixed(0) + "%" : null),
+    ].forEach((n) => n && m.append(n));
+    if (m.childNodes.length) main.append(m);
+    if (h.why && h.why.length) {
+      const ul = el("ul", "why");
+      h.why.forEach((w) => ul.append(el("li", /illiquid|thin trading|designation|loss|liabilities\/equity|negative equity|no spread|self-tender|seller|sold down|below market|denies|acquirer|lower than|kept as a subsidiary|partial tender|going-concern|period ended/i.test(w) ? "minus" : null, w)));
+      main.append(ul);
+    }
+    if (h.fin) main.append(el("div", "fin", h.fin));
+    if (!h.passes && h.fail_reasons && h.fail_reasons.length) main.append(el("div", "reasons", "Filtered out: " + h.fail_reasons.join(", ")));
+    const foot = el("div", "row-foot");
+    const a = link(h.url, "TDnet PDF ↗"); if (a) foot.append(a);
+    const y = link("https://finance.yahoo.co.jp/quote/" + encodeURIComponent(h.code) + ".T", "Quote ↗"); if (y) foot.append(y);
+    main.append(foot);
+    card.append(rate, main);
+    return card;
+  }
+  function warnList(list) {
+    const ul = el("ul", "warn-list");
+    list.forEach((h) => {
+      const li = el("li");
+      li.append(codeBtn(h.code), el("b", null, h.company), el("span", "mut mono", fmtDate(h._date)), el("span", "wl", h.headline || h.kind_label));
+      if (h.mine) li.append(el("span", "mine-tag", "MY LIST"));
+      const a = link(h.url, "PDF ↗"); if (a) li.append(a);
+      ul.append(li);
+    });
+    return ul;
+  }
+  function renderDesk() {
+    const shown = items.filter(base);
+    const counts = { __all: 0 };
+    shown.forEach((h) => { counts[h._cat] = (counts[h._cat] || 0) + 1; if (!isWarn(h._cat)) counts.__all++; });
+    renderRail(counts);
+    const root = $("list");
+    root.replaceChildren();
+    if (!runs.length) {
+      const e = el("div", "empty"); e.append(el("h3", null, "Waiting for the first scan"), el("p", null, "Each weekday's scan posts here: every TDnet disclosure sorted into its category and rated, with the numbers behind the rating and a link to the PDF."));
+      root.append(e); return;
+    }
+    const c = cat === "all" ? null : CAT[cat];
+    const list = shown.filter((h) => (c ? h._cat === cat : !isWarn(h._cat))).sort(rank);
+    const head = el("div", "list-head");
+    head.append(el("b", null, c ? c.label : "All opportunities"), el("span", "mut", list.length + (list.length === 1 ? " filing" : " filings")));
+    root.append(head);
+    if (c) root.append(el("p", "cat-note", c.note));
+    if (!list.length) {
+      root.append(el("div", "none", minStars ? "Nothing at " + minStars + " stars or more here. Lower the rating filter or widen the period." : "Nothing in this category for the period."));
+    } else if (c && c.g === "warning") {
+      root.append(warnList(list));
+    } else {
+      list.slice(0, limit).forEach((h) => root.append(rowEl(h)));
+      if (list.length > limit) {
+        const more = el("button", "more", "Show " + (list.length - limit) + " more");
+        more.type = "button";
+        more.addEventListener("click", () => { limit += 150; renderDesk(); });
+        root.append(more);
+      }
+    }
+    const lr = latestRun();
+    if (lr && lr.notes && lr.notes.length) root.append(el("div", "notes", lr.notes.join(" · ")));
+  }
+
+  // ---------------------------------------------------------------- CHEAP
+  const hitsByCode = () => {
+    const m = {};
+    items.forEach((h) => { if (!isWarn(h._cat) && h.passes !== false) (m[h.code] = m[h.code] || []).push(h); });
+    return m;
+  };
+  const frByCode = () => Object.fromEntries(((fr && fr.rows) || []).map((r) => [r.code, r]));
+  const CHEAP_COLS = [
+    ["rank", "順位", "Rank", (r, i) => i + 1, "rk"],
+    ["code", "コード", "Code", null, "l"],
+    ["name", "銘柄名", "Name", null, "l"],
+    ["market", "市場", "Mkt", null, "l"],
+    ["re_index", "指数", "Index", null, ""],
+    ["mcap", "時価総額", "億円", null, ""],
+    ["nca", "正味流動資産", "億円", null, ""],
+    ["real_estate", "不動産・土地", "億円", null, ""],
+    ["pb", "PBR", "×", null, ""],
+    ["pe", "PER", "×", null, ""],
+    ["adv", "売買代金", "¥/day", null, ""],
+    ["delta", "Δ REF", "rank", null, ""],
+    ["pre", "PRE-DEAL", "★", null, ""],
+    ["cat", "CATALYST", "radar", null, "l"],
+  ];
+  function renderCheap() {
+    const doc = wl.re_netnet;
+    const t = $("cheap-t");
+    t.replaceChildren();
+    if (wlMeta) $("cheap-meta").textContent = "Screened " + wlMeta.date + " · prices " + (wlMeta.price_date || "—") + " · " + (doc ? doc.count : 0) + " companies below 1.0 of " + (wlMeta.screened || 0).toLocaleString("en-US") + " screened" + (wlMeta.edinet ? " · EDINET fundamentals" : " · reference ranking + earnings-release balance sheets (add an EDINET key for the whole market)");
+    $("n-cheap").textContent = doc ? String(doc.count) : "";
+    if (!doc) { const cap = el("caption", "none", "No screen yet. The weekly value screen fills this table."); t.append(cap); return; }
+    const frm = frByCode(), hm = hitsByCode(), mine = mineSet();
+    const q = ($("cheap-q").value || "").trim().toLowerCase();
+    let rows = doc.rows.map((r, i) => Object.assign({}, r, { _base: i + 1 }));
+    rows = rows.filter((r) => (cheapMkt === "all" || r.market === cheapMkt) && (!cheapAdv || (num(r.adv) && r.adv >= cheapAdv))
+      && (!q || r.code.toLowerCase().includes(q) || (r.name || "").toLowerCase().includes(q)));
+    rows.forEach((r) => {
+      const ref = r.flags && r.flags.ref_rank;
+      r.delta = ref ? ref - r._base : null;
+      r.pre = (frm[r.code] || {}).stars || null;
+      r.cat = (hm[r.code] || []).length;
+    });
+    const k = cheapSort.key, dir = cheapSort.dir;
+    if (k !== "rank") rows.sort((a, b) => {
+      const va = a[k], vb = b[k];
+      if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1;
+      return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * dir;
+    });
+    const thead = el("thead"), hr = el("tr");
+    CHEAP_COLS.forEach(([key, jp, en, , cls]) => {
+      const th = el("th", (cls || "") + " sortable");
+      th.scope = "col"; th.append(document.createTextNode(jp)); th.append(el("small", null, en));
+      if (key === k || (key === "rank" && k === "re_index")) th.setAttribute("aria-sort", (key === "rank" ? 1 : dir) > 0 ? "ascending" : "descending");
+      th.addEventListener("click", () => {
+        const kk = key === "rank" ? "re_index" : key;
+        cheapSort = { key: kk, dir: cheapSort.key === kk ? -cheapSort.dir : (["re_index", "pb", "pe", "code", "market", "name"].includes(kk) ? 1 : -1) };
+        renderCheap();
+      });
+      hr.append(th);
+    });
+    thead.append(hr); t.append(thead);
+    const tb = el("tbody");
+    const maxBar = 1;
+    rows.forEach((r, i) => {
+      const tr = el("tr", mine.has(r.code) ? "mine" : null);
+      const td = (v, cls) => { const x = el("td", cls || null); if (v instanceof Node) x.append(v); else x.textContent = v; tr.append(x); return x; };
+      td(String(k === "re_index" && dir > 0 ? i + 1 : r._base), "rk");
+      td(codeBtn(r.code), "l");
+      const nm = el("td", "nm"); nm.append(el("b", null, r.name)); nm.title = r.name + (r.sector ? " · " + r.sector : ""); tr.append(nm);
+      td(r.market || "", "l mut");
+      const ix = td(f3(r.re_index), "idx");
+      if (num(r.re_index)) { const bar = el("span", "bar"); bar.style.width = Math.max(2, (1 - Math.min(r.re_index, maxBar)) * 40) + "px"; ix.append(bar); }
+      td(oku(r.mcap) + (r.supplementary_mcap ? "*" : ""));
+      td(oku(r.nca), num(r.nca) && r.nca < 0 ? "neg" : null);
+      td(num(r.real_estate) && r.real_estate > 0 ? oku(r.real_estate) : "-");
+      td(f2(r.pb)); td(f1(r.pe)); td(advM(r.adv), num(r.adv) && r.adv < 3e6 ? "neg" : null);
+      td(r.delta == null ? "" : (r.delta > 0 ? "▲" + r.delta : r.delta < 0 ? "▼" + -r.delta : "="), r.delta > 0 ? "pos" : r.delta < 0 ? "neg" : "mut");
+      const pre = el("td"); if (r.pre) pre.append(starsEl(r.pre)); tr.append(pre);
+      const cc = el("td", "l"); if (r.cat) { const hh = (hm[r.code] || []).sort(rank)[0]; const b = el("span", "tag", (CAT[hh._cat] || {}).label || hh.kind_label); b.style.setProperty("--g", "var(--" + ((CAT[hh._cat] || {}).g || "amber") + ")"); cc.append(b); } tr.append(cc);
+      tb.append(tr);
+    });
+    t.append(tb);
+  }
+
+  // ---------------------------------------------------------------- VALUE lists
+  const WL = {
+    net_net: { desc: "Current assets minus all liabilities above market cap. Profitable companies first.", key: ["NCAV/MCAP", (r) => f2(r.ncav_mcap)] },
+    cash_rich: { desc: "Cash + securities + investment securities − all liabilities ≥ 70% of market cap, profitable last year.", key: ["NET CASH/MCAP", (r) => f2(r.am_mcap)] },
+    deep_value: { desc: "P/E ≤ 6 and P/B ≤ 0.6, profitable in at least 4 of the last 5 years.", key: ["P/E × P/B", (r) => (num(r.pe) && num(r.pb) ? (r.pe * r.pb).toFixed(2) : "—")] },
+    treasury: { desc: "Treasury shares ≥ 10% of issued at P/B ≤ 1: cancellation or a block sale to an acquirer.", key: ["TREASURY", (r) => (num(r.treasury_pct) ? r.treasury_pct.toFixed(1) + "%" : "—")] },
+    parent_sub: { desc: "A corporate holder at 50% or more and P/B ≤ 1: the parent can take out the minority cheaply.", key: ["PARENT %", (r) => (num(r.top_holder_pct) ? r.top_holder_pct.toFixed(1) + "%" : "—")] },
+  };
+  if (!WL[wlList]) wlList = "net_net";
+  function renderValue() {
+    document.querySelectorAll(".wl-btn").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.dataset.l === wlList));
+      const baseLabel = b.dataset.label || (b.dataset.label = b.textContent);
+      const n = (wl[b.dataset.l] || {}).count;
+      b.textContent = baseLabel + (n != null ? " (" + n + ")" : "");
+    });
+    $("wl-desc").textContent = WL[wlList].desc;
+    if (wlMeta) $("wl-meta").textContent = "screened " + wlMeta.date + " · prices " + (wlMeta.price_date || "—");
+    const body = $("wl-body");
+    body.replaceChildren();
+    const doc = wl[wlList];
+    if (!doc) { const e = el("div", "empty"); e.append(el("h3", null, "No screen yet"), el("p", null, "The weekly screen fills this list.")); body.append(e); return; }
+    if (!doc.rows.length) { body.append(el("div", "none", "No company meets this test this week" + (wlMeta && !wlMeta.edinet ? " in the companies screened so far (set an EDINET key for the whole market)." : "."))); return; }
+    const wrap = el("div", "table-wrap"), t = el("table", "t");
+    const cols = [["Code", "l"], ["Name", "l"], ["Mkt", "l"], [WL[wlList].key[0]], ["Mcap"], ["P/E"], ["P/B"], ["RE idx"], ["NCAV/mcap"], ["Net cash/mcap"], ["Treasury"], ["Top holder", "l"], ["ADV"]];
+    const hd = el("tr"); cols.forEach(([c, cls]) => { const th = el("th", cls || null, c); th.scope = "col"; hd.append(th); });
+    const thead = el("thead"); thead.append(hd); t.append(thead);
+    const tb = el("tbody"), mine = mineSet();
+    doc.rows.forEach((r) => {
+      const tr = el("tr", mine.has(r.code) ? "mine" : null);
+      const c1 = el("td", "l"); c1.append(codeBtn(r.code)); tr.append(c1);
+      const nm = el("td", "nm"); nm.append(el("b", null, r.name)); tr.append(nm);
+      tr.append(el("td", "l mut", r.market || ""), el("td", "idx", WL[wlList].key[1](r)), el("td", null, yen(r.mcap)), el("td", null, f1(r.pe)), el("td", null, f2(r.pb)),
+        el("td", null, f2(r.re_index)), el("td", null, f2(r.ncav_mcap)), el("td", null, f2(r.am_mcap)),
+        el("td", null, num(r.treasury_pct) ? r.treasury_pct.toFixed(1) + "%" : "—"),
+        el("td", "nm", r.top_holder ? r.top_holder + (num(r.top_holder_pct) ? " " + r.top_holder_pct.toFixed(1) + "%" : "") : "—"), el("td", null, advM(r.adv)));
+      tb.append(tr);
+    });
+    t.append(tb); wrap.append(t); body.append(wrap);
+  }
+
+  // ---------------------------------------------------------------- PRE-DEAL
+  function renderPre() {
+    const t = $("pre-t");
+    t.replaceChildren();
+    const rows0 = (fr && fr.rows) || [];
+    $("n-pre").textContent = rows0.length ? String(rows0.filter((r) => r.stars >= 4).length) : "";
+    if (!rows0.length) { t.append(el("caption", "none", "No pre-deal scores yet. The weekly screen fills this table.")); return; }
+    if (fr.date) $("pre-meta").textContent = "Scored " + fr.date + " · " + rows0.length + " companies (value lists + your list) · signals from annual reports, TDnet history (3 years) and 5% reports.";
+    const q = ($("pre-q").value || "").trim().toLowerCase();
+    const rows = rows0.filter((r) => r.stars >= preMin && (!q || r.code.toLowerCase().includes(q) || (r.name || "").toLowerCase().includes(q)
+      || (r.reasons || []).join(" ").toLowerCase().includes(q)));
+    const cols = [["★", ""], ["Prob", ""], ["Code", "l"], ["Name", "l"], ["Mkt", "l"], ["RE idx", ""], ["P/B", ""], ["Mcap", ""], ["ADV", ""], ["Signals", "l"], ["Latest event", "l"]];
+    const thead = el("thead"), hr = el("tr");
+    cols.forEach(([c, cls]) => { const th = el("th", cls || null, c); th.scope = "col"; hr.append(th); });
+    thead.append(hr); t.append(thead);
+    const tb = el("tbody"), mine = mineSet();
+    rows.forEach((r) => {
+      const tr = el("tr", mine.has(r.code) || r.mine ? "mine" : null);
+      const s = el("td"); s.append(starsEl(r.stars)); tr.append(s);
+      tr.append(el("td", "idx", Math.round(r.prob * 100) + "%"));
+      const c1 = el("td", "l"); c1.append(codeBtn(r.code)); tr.append(c1);
+      const nm = el("td", "nm"); nm.append(el("b", null, r.name)); tr.append(nm);
+      tr.append(el("td", "l mut", r.market || ""), el("td", null, f2(r.re_index)), el("td", null, f2(r.pb)), el("td", null, yen(r.mcap)), el("td", null, advM(r.adv)));
+      const sg = el("td", "wrapcell"); (r.reasons || []).forEach((x) => sg.append(el("span", "sig", x))); if (!(r.reasons || []).length) sg.textContent = "—"; tr.append(sg);
+      const ev = (r.events || [])[0];
+      const evc = el("td", "wrapcell");
+      if (ev) { const a = link(ev.url, ev.date + " " + ev.title.slice(0, 48)); evc.append(a || document.createTextNode(ev.date + " " + ev.title.slice(0, 48))); } else evc.textContent = "—";
+      tr.append(evc);
+      tb.append(tr);
+    });
+    t.append(tb);
+  }
+
+  // ---------------------------------------------------------------- MY LIST
+  function renderMine() {
+    const t = $("mine-t");
+    t.replaceChildren();
+    const rows = (mineDoc && mineDoc.rows) || [];
+    const cap = rows.filter((r) => r.captured).length;
+    $("n-mine").textContent = rows.length ? cap + "/" + rows.length : "";
+    if (!rows.length) { t.append(el("caption", "none", "Nothing yet. The weekly screen checks every name on your list and in the reference ranking.")); return; }
+    $("mine-meta").textContent = "Checked " + (mineDoc.date || "") + ": " + cap + " of " + rows.length + " names surfaced on a value list. Add names to data/watchlist.csv in the repo.";
+    const hm = hitsByCode();
+    const cols = [["Status", "l"], ["Code", "l"], ["Name", "l"], ["Ref rank", ""], ["Ref idx", ""], ["Now idx", ""], ["Now rank", ""], ["Lists", "l"], ["Pre-deal", ""], ["Latest radar", "l"], ["Why not", "l"]];
+    const thead = el("thead"), hr = el("tr");
+    cols.forEach(([c, cls]) => { const th = el("th", cls || null, c); th.scope = "col"; hr.append(th); });
+    thead.append(hr); t.append(thead);
+    const tb = el("tbody");
+    rows.forEach((r) => {
+      const tr = el("tr", r.mine ? "mine" : null);
+      const st = el("td", "l"); st.append(el("span", "st " + (r.captured ? "ok" : "miss"), r.captured ? "SURFACED" : "MISSED")); tr.append(st);
+      const c1 = el("td", "l"); c1.append(codeBtn(r.code)); tr.append(c1);
+      const nm = el("td", "nm"); nm.append(el("b", null, r.name || "")); tr.append(nm);
+      tr.append(el("td", "rk", r.ref_rank || "—"), el("td", null, f3(r.ref_index)), el("td", "idx", f3(r.re_index)), el("td", "rk", r.rank || "—"),
+        el("td", "l mut", (r.lists || []).join(", ") || "—"));
+      const p = el("td"); if (r.frontrun_stars) p.append(starsEl(r.frontrun_stars)); else p.textContent = "—"; tr.append(p);
+      const hh = (hm[r.code] || []).sort((a, b) => (b._date > a._date ? 1 : -1))[0];
+      tr.append(el("td", "wrapcell", hh ? fmtDate(hh._date) + " " + hh.headline : "—"));
+      tr.append(el("td", "wrapcell", r.reason || ""));
+      tb.append(tr);
+    });
+    t.append(tb);
+  }
+
+  // ---------------------------------------------------------------- security panel (DES)
+  function findValue(code) {
+    for (const k of ["re_netnet", "net_net", "cash_rich", "deep_value", "treasury", "parent_sub"]) {
+      const r = ((wl[k] || {}).rows || []).find((x) => x.code === code);
+      if (r) return r;
+    }
+    return null;
+  }
+  function openDes(code) {
+    code = String(code || "").toUpperCase();
+    const v = findValue(code), f = frByCode()[code], hs = items.filter((h) => h.code === code).sort((a, b) => (b._date + (b.time || "") > a._date + (a.time || "") ? 1 : -1));
+    const m = ((mineDoc && mineDoc.rows) || []).find((r) => r.code === code);
+    const name = (v && v.name) || (f && f.name) || (hs[0] && hs[0].company) || (m && m.name) || "";
+    const d = $("des");
+    d.replaceChildren();
+    const h = el("div", "des-h");
+    h.append(el("span", "code", code + " JT"), el("span", "co", name || "Not in the current data"));
+    const mk = (v && v.market) || (f && f.market) || (hs[0] && hs[0].market);
+    if (mk) h.append(el("span", "mkt", mk));
+    if (m && m.mine) h.append(el("span", "mine-tag", "MY LIST"));
+    const x = el("button", "des-x", "ESC ✕"); x.type = "button"; x.addEventListener("click", closeDes); h.append(x);
+    d.append(h);
+    const kv = el("div", "kv");
+    const add = (k, val, cls) => { const c = el("div"); c.append(el("span", null, k), el("b", cls || null, val)); kv.append(c); };
+    const px = (hs.find((x) => num(x.price)) || {}).price ?? (v && v.price);
+    add("Last", num(px) ? "¥" + px.toLocaleString("en-US") : "—");
+    add("Mcap", yen((v && v.mcap) ?? (f && f.mcap) ?? (hs[0] && hs[0].mcap)));
+    add("RE net-net idx", f3((v && v.re_index) ?? (f && f.re_index)), "pos");
+    add("Net curr. assets", v ? oku(v.nca) + "億" : "—", v && v.nca < 0 ? "neg" : null);
+    add("Real estate", v && num(v.real_estate) ? oku(v.real_estate) + "億" : "—");
+    add("P/B", f2((v && v.pb) ?? (f && f.pb)));
+    add("P/E", f1(v && v.pe));
+    add("ADV", advM((v && v.adv) ?? (f && f.adv)));
+    add("Pre-deal", f ? Math.round(f.prob * 100) + "% " + "★".repeat(f.stars) : "—", "amb");
+    d.append(kv);
+    const lists = tagsOf(code);
+    if (lists.length || (m && m.ref_rank)) {
+      const p = el("div", "fin");
+      p.textContent = (lists.length ? "Value lists: " + lists.join(", ") : "") + (m && m.ref_rank ? (lists.length ? " · " : "") + "Reference rank " + m.ref_rank + " (index " + f3(m.ref_index) + ")" : "") + (v && v.source ? " · source: " + v.source : "");
+      d.append(p);
+    }
+    if (f && (f.reasons || []).length) {
+      d.append(el("h4", null, "Pre-deal signals"));
+      const ul = el("ul", "why"); f.reasons.forEach((r) => ul.append(el("li", null, r))); d.append(ul);
+    }
+    d.append(el("h4", null, "Radar (" + hs.length + ")"));
+    if (hs.length) {
+      const ul = el("ul", "ev");
+      hs.slice(0, 20).forEach((x) => {
+        const li = el("li"); li.append(el("span", null, fmtDate(x._date) + " " + (x._stars ? "★".repeat(x._stars) : "⚠")));
+        const t = el("div"); const a = link(x.url, x.headline); t.append(a || document.createTextNode(x.headline)); if (x.why && x.why.length) t.append(el("div", "jp", x.why.join(" · ")));
+        li.append(t); ul.append(li);
+      });
+      d.append(ul);
+    } else d.append(el("div", "mut", "No rated filing in the stored scans."));
+    if (f && (f.events || []).length) {
+      d.append(el("h4", null, "TDnet history (deal-relevant)"));
+      const ul = el("ul", "ev");
+      f.events.forEach((e) => { const li = el("li"); li.append(el("span", null, e.date)); const a = link(e.url, e.title); li.append(a || el("div", null, e.title)); ul.append(li); });
+      d.append(ul);
+    }
+    const ln = el("div", "links");
+    [["Yahoo! Finance ↗", "https://finance.yahoo.co.jp/quote/" + encodeURIComponent(code) + ".T"], ["IR BANK ↗", "https://irbank.net/" + encodeURIComponent(code)],
+     ["Kabutan ↗", "https://kabutan.jp/stock/?code=" + encodeURIComponent(code)]].forEach(([t, u]) => { const a = link(u, t); if (a) ln.append(a); });
+    d.append(ln);
+    d.hidden = false; $("des-back").hidden = false;
+    x.focus();
+  }
+  function closeDes() { $("des").hidden = true; $("des-back").hidden = true; }
+  $("des-back").addEventListener("click", closeDes);
+
+  // ---------------------------------------------------------------- command line + keys
+  const VIEWS = ["radar", "cheap", "value", "pre", "mine", "help"];
+  function showView(v) {
+    view = v;
+    VIEWS.forEach((id) => { $(id).hidden = id !== v; });
+    document.querySelectorAll(".fk").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.v === v)));
+    store.set("jr-view", v);
+  }
+  document.querySelectorAll(".fk").forEach((b) => b.addEventListener("click", () => showView(b.dataset.v)));
+  function fillDatalist() {
+    const dl = $("cmd-list"); dl.replaceChildren();
+    const seen = new Map();
+    ((wl.re_netnet || {}).rows || []).forEach((r) => seen.set(r.code, r.name));
+    items.forEach((h) => { if (!seen.has(h.code)) seen.set(h.code, h.company); });
+    ((fr && fr.rows) || []).forEach((r) => { if (!seen.has(r.code)) seen.set(r.code, r.name); });
+    [...seen.entries()].slice(0, 1500).forEach(([c, n]) => { const o = el("option"); o.value = c; o.label = n; dl.append(o); });
+  }
+  $("cmd").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const raw = ($("cmd-in").value || "").trim();
+    const q = raw.toUpperCase().replace(/\s*<?GO>?$/, "").replace(/\s+(JT|JP|EQUITY)$/, "");
+    if (!q) return;
+    const viewCmd = { RADAR: "radar", CHEAP: "cheap", NETNET: "cheap", VALUE: "value", PRE: "pre", "PRE-DEAL": "pre", MY: "mine", MINE: "mine", HELP: "help" }[q];
+    if (viewCmd) { showView(viewCmd); $("cmd-in").value = ""; return; }
+    if (/^[0-9][0-9A-Z]{3}$/.test(q)) { openDes(q); $("cmd-in").value = ""; return; }
+    const ql = raw.toLowerCase();
+    const hit = ((wl.re_netnet || {}).rows || []).find((r) => (r.name || "").toLowerCase().includes(ql)) || items.find((h) => (h.company || "").toLowerCase().includes(ql))
+      || ((fr && fr.rows) || []).find((r) => (r.name || "").toLowerCase().includes(ql));
+    if (hit) { openDes(hit.code); $("cmd-in").value = ""; }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("des").hidden) { closeDes(); return; }
+    const tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (/^[1-6]$/.test(e.key)) { showView(VIEWS[Number(e.key) - 1]); e.preventDefault(); }
+    else if (e.key === "/") { $("cmd-in").focus(); e.preventDefault(); }
+  });
+
+  // ---------------------------------------------------------------- controls
+  function syncSegs() {
+    const sync = (id, val) => document.querySelectorAll("#" + id + " button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === String(val))));
+    sync("seg-period", period); sync("seg-stars", minStars); sync("seg-mkt", cheapMkt); sync("seg-adv", cheapAdv); sync("seg-pre", preMin);
+  }
+  function bindSeg(id, set, after) {
+    document.querySelectorAll("#" + id + " button").forEach((b) => b.addEventListener("click", () => { set(b.dataset.v); syncSegs(); after(); }));
+  }
+  bindSeg("seg-period", (v) => { period = v; store.set("jr-period", v); limit = 80; }, renderRadar);
+  bindSeg("seg-stars", (v) => { minStars = Number(v); store.set("jr-stars", v); limit = 80; }, renderRadar);
+  bindSeg("seg-mkt", (v) => { cheapMkt = v; store.set("jr-mkt", v); }, renderCheap);
+  bindSeg("seg-adv", (v) => { cheapAdv = Number(v); store.set("jr-adv", v); }, renderCheap);
+  bindSeg("seg-pre", (v) => { preMin = Number(v); store.set("jr-pre", v); }, renderPre);
+  syncSegs();
+  $("only-mine").addEventListener("change", (e) => { onlyMine = e.target.checked; store.set("jr-only-mine", onlyMine ? "1" : "0"); renderRadar(); });
+  $("only-cheap").addEventListener("change", (e) => { onlyCheap = e.target.checked; store.set("jr-only-cheap", onlyCheap ? "1" : "0"); renderRadar(); });
+  $("show-failed").addEventListener("change", (e) => { showFailed = e.target.checked; store.set("jr-show-failed", showFailed ? "1" : "0"); renderRadar(); });
+  $("cheap-q").addEventListener("input", renderCheap);
+  $("pre-q").addEventListener("input", renderPre);
+  document.querySelectorAll(".wl-btn").forEach((b) => b.addEventListener("click", () => { wlList = b.dataset.l; store.set("jr-wl", wlList); renderValue(); }));
+
+  function renderRadar() { renderTape(); renderIdeas(); renderDesk(); }
+  function renderAll() { renderRadar(); renderCheap(); renderValue(); renderPre(); renderMine(); fillDatalist(); }
+
+  const hashView = { "#cheap": "cheap", "#value": "value", "#pre": "pre", "#mine": "mine", "#help": "help", "#radar": "radar" }[location.hash];
+  const saved = store.get("jr-view", "radar");
+  showView(hashView || (VIEWS.includes(saved) ? saved : "radar"));
+  renderAll();
+
+  // ---------------------------------------------------------------- feed
+  (async () => {
+    const db = await window.claude?.use?.("db");
+    if (!db) { $("st-live").replaceChildren(document.createTextNode("Feed "), el("b", "neg", "offline")); return; }
+    $("st-live").replaceChildren(document.createTextNode("Feed "), el("b", null, "live"));
+    db.collection("runs").orderBy("date", "desc").limit(60).onSnapshot((snap) => {
+      runs = snap.docs.map((d) => d.data()).filter(Boolean);
+      flatten(); renderAll();
+    }, () => {});
+    db.collection("watchlist").onSnapshot((snap) => {
+      wl = {}; wlMeta = null;
+      snap.docs.forEach((d) => { if (d.id === "meta") wlMeta = d.data(); else wl[d.id] = d.data(); });
+      const tags = {};
+      Object.entries(wl).forEach(([k, doc]) => (doc.rows || []).forEach((r) => (tags[r.code] = tags[r.code] || []).push(k)));
+      wl._tags = tags;
+      renderAll();
+    }, () => {});
+    db.collection("frontrun").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "latest"); fr = d ? d.data() : null; renderAll(); }, () => {});
+    db.collection("mine").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "latest"); mineDoc = d ? d.data() : null; renderAll(); }, () => {});
+  })();
+})();
+</script>

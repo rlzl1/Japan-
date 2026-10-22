@@ -1,0 +1,38 @@
+pattern,display,kind
+ストラテジックキャピタル|Strategic Capital,Strategic Capital,activist
+エフィッシモ|Effissimo,Effissimo Capital,activist
+シティインデックスイレブンス|City Index Eleventh,City Index Eleventh (Murakami),murakami
+南青山不動産,Minami Aoyama Fudosan (Murakami),murakami
+^(株式会社)?レノ$|株式会社レノ|Reno Co,Reno (Murakami),murakami
+オフィスサポート,Office Support (Murakami),murakami
+エスグラントコーポレーション|S-Grant,S-Grant (Murakami),murakami
+野村\s*絢|Aya Nomura,Aya Nomura (Murakami),murakami
+村上\s*(世彰|貴輝|玲|フミ)|Yoshiaki Murakami,Murakami family,murakami
+ATRA|アトラ,ATRA (Murakami),murakami
+3D Investment|スリーディー・インベストメント|3D OPPORTUNITY,3D Investment Partners,activist
+オアシス|Oasis Management|OASIS INVESTMENTS,Oasis Management,activist
+エリオット|Elliott|ELLIOTT,Elliott Management,activist
+ダルトン|Dalton|ニッポン・アクティブ・バリュー|NIPPON ACTIVE VALUE,Dalton / NAVF,activist
+ひびき・パース|Hibiki Path,Hibiki Path Advisors,activist
+いちごアセット|Ichigo Asset|ICHIGO TRUST|いちごトラスト,Ichigo Asset Management,activist
+バリューアクト|ValueAct|VALUEACT,ValueAct Capital,activist
+パリサー|Palliser|PALLISER,Palliser Capital,activist
+アセット・バリュー・インベスターズ|Asset Value Investors|AVI JAPAN|AVI GLOBAL|ＡＶＩ,Asset Value Investors (AVI),activist
+シルチェスター|Silchester|SILCHESTER,Silchester,value_holder
+タイヨウ|Taiyo Pacific|TAIYO FUND|TAIYO HANEI,Taiyo Pacific,activist
+サード・ポイント|Third Point|THIRD POINT,Third Point,activist
+キング・ストリート|King Street|KING STREET,King Street,activist
+ファー・ツリー|Fir Tree|FIR TREE,Fir Tree,activist
+カタリスト投資顧問|Catalyst Investment Advisors,Catalyst Investment Advisors (Monex),activist
+カナメ・キャピタル|Kaname Capital|KANAME CAPITAL,Kaname Capital,activist
+ライジング・サン|Rising Sun|RISING SUN,Rising Sun Management,activist
+LIM\s*Advisors|LIMアドバイザーズ|LIM JAPAN,LIM Advisors,activist
+ヤマウチ・ナンバーテン|Yamauchi-No\.? ?10|YAMAUCHI-NO.10|山内10,Yamauchi No.10 Family Office,activist
+アーカス|Arcus Investment|ARCUS,Arcus Investment,value_holder
+インダス・キャピタル|Indus Capital|INDUS,Indus Capital,value_holder
+マーチンソン|Murchinson|MURCHINSON,Murchinson,activist
+シンプレクス・アセット|Simplex Asset,Simplex Asset Management,value_holder
+スパークス|SPARX,SPARX Asset Management,engagement
+ブランデス|Brandes|BRANDES,Brandes Investment Partners,value_holder
+ゼナー|Zennor|ZENNOR,Zennor Asset Management,value_holder
+光通信|UH Partners|UHパートナーズ|エスアイエル|ＵＨ　Ｐａｒｔｎｅｒｓ,Hikari Tsushin group,event_holder
