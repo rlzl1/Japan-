@@ -29,3 +29,16 @@ def test_isamu_paint_is_tracked():
     assert "4624" in refs
     row = reference_row(refs["4624"], None)
     assert row.re_index < 0.6
+
+
+def test_market_cap_after_split_and_cancellation():
+    from jpscreen.fundamentals import Fundamentals
+    from jpscreen.prices import Quote
+    from jpscreen.value import market_cap
+    f = Fundamentals(code="2814", shares_issued=7_377_460, treasury_shares=3_498_600)
+    # 2-for-1 split after the filing: Yahoo shows the new count, treasury doubles too
+    assert market_cap(f, Quote(code="2814", price=1812, shares_issued=14_754_920)) == 1812 * (14_754_920 - 6_997_200)
+    # 500,000 treasury shares cancelled: outstanding unchanged
+    assert market_cap(f, Quote(code="2814", price=1000, shares_issued=6_877_460)) == 1000 * (7_377_460 - 3_498_600)
+    # no change
+    assert market_cap(f, Quote(code="2814", price=1000, shares_issued=7_377_460)) == 1000 * (7_377_460 - 3_498_600)

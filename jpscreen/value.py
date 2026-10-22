@@ -83,14 +83,36 @@ class ValueRow:
         return d
 
 
+SPLIT_RATIOS = (2, 3, 4, 5, 10, 20, 1 / 2, 1 / 3, 1 / 4, 1 / 5, 1 / 10, 3 / 2, 5 / 4)
+
+
+def shares_now(f: Optional[Fundamentals], q: Optional[Quote]) -> tuple[Optional[float], float]:
+    """(issued, treasury) today: the filing's counts, carried forward to the quote's current issued count.
+
+    A split or reverse split since the filing scales treasury shares by the same ratio; a cancellation removes the
+    cancelled shares from treasury; an issuance leaves treasury as it was."""
+    f_issued = f.shares_issued if f and f.shares_issued else None
+    treasury = (f.treasury_shares or 0.0) if f else 0.0
+    q_issued = q.shares_issued if q and q.shares_issued else None
+    if f_issued is None or q_issued is None:
+        return f_issued or q_issued, treasury if f_issued else 0.0
+    r = q_issued / f_issued
+    if abs(r - 1) < 0.005:
+        return f_issued, treasury
+    if any(abs(r / k - 1) < 0.01 for k in SPLIT_RATIOS):
+        return q_issued, treasury * r
+    if q_issued < f_issued:
+        return q_issued, max(treasury - (f_issued - q_issued), 0.0)
+    return q_issued, treasury
+
+
 def market_cap(f: Optional[Fundamentals], q: Optional[Quote], basis: str = "ex_treasury") -> Optional[float]:
     if q is None or q.price is None:
         return None
-    issued = (f.shares_issued if f and f.shares_issued else None) or q.shares_issued
+    issued, treasury = shares_now(f, q)
     if issued is None:
         return q.mcap_issued
-    treasury = (f.treasury_shares or 0) if (f and basis == "ex_treasury") else 0
-    return q.price * max(issued - treasury, 0)
+    return q.price * max(issued - (treasury if basis == "ex_treasury" else 0), 0)
 
 
 def net_current_assets(f: Fundamentals) -> Optional[float]:

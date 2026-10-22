@@ -34,7 +34,8 @@ The dashboard page is `dashboard/japan_radar.html`.
 | 6 | COVERAGE | Every name in `data/watchlist.csv` and the reference ranking: surfaced or missed, and why |
 | 7 | HELP | Stars, categories, formulas, priors |
 
-Type a code (`4624`) or a name in the command line to open the security panel; `1`–`7` switch views, `P` opens
+Company names show in English (EDINET's register; the Japanese name is on hover). Type a code (`4624`) or a name,
+in English or Japanese, in the command line to open the security panel; `1`–`7` switch views, `P` opens
 the portfolio. Add a holding on the PORT tab (code, held/watching, shares, average cost): it shows at once with
 its last price and is researched by the next refresh (or press REFRESH).
 
@@ -46,11 +47,16 @@ net current assets = cash + trade receivables + securities + investment securiti
                      - total liabilities - non-controlling interests            (inventories excluded)
 ```
 
-Rental real estate comes from the 賃貸等不動産 note of the annual report (fair value incl. buildings);
-the land add-on is `max(0, land book value - rental property book value) x 50%`. The formula reproduces
-all 50 rows of the 2026-10-09 reference ranking (`data/reference_netnet_2026-10-09.csv`,
-`tests/test_reference.py`), and the coverage check reports any reference or watchlist name the live
-screen fails to surface, with the reason.
+Rental real estate comes from the 賃貸等不動産 note of the annual report (fair value incl. buildings), summed over
+every class of property the note lists (rental, and property partly used by the company); the land add-on is
+`max(0, land book value - rental property book value) x 50%`. The parser reads the note's tables whether the
+measures run down rows or across columns, skips last year's table, and handles footnote and ditto marks
+(`tests/fixtures/rental_*.html` are real notes). The index formula reproduces all 50 rows of the 2026-10-09
+reference ranking from its own columns (`data/reference_netnet_2026-10-09.csv`, `tests/test_reference.py`). Rebuilt
+from the filings, all 50 come out below 1.0 and 41 of 50 match the reference's real-estate figure within 5%; the
+other nine are 5-11% lower, because the note's book value includes buildings, so the land add-on is conservative.
+The coverage check (COVERAGE tab) reports any reference or watchlist name the live screen fails to surface, with
+the reason.
 
 ## Categories (same ids as Korea)
 
@@ -78,7 +84,12 @@ Each weekday a fresh session restores state from the dashboard's database (`cach
 fundamentals of every listed company), reads new EDINET filings, scans TDnet, rebuilds the portfolio (holdings
 from the Tokyo Filings Tracker plus positions added on the page), translates new titles, and writes back only
 the documents that changed (`state/out/batches.json`, pinned to their versions). Mondays also rerun the
-whole-market value screen. The REFRESH button on the PORT tab starts the same task on demand.
+whole-market value screen. The REFRESH button on the PORT tab starts the same task on demand. The task's prompt is
+`docs/refresh_prompt.md` (weekdays 19:37 JST). Holdings, positions and the REFRESH button are visible only to the
+page's owner and editors.
+
+Yahoo! Finance's quote and history pages fail intermittently (HTTP 500); a quote then falls back to the history
+page for price, date and liquidity, and to the bulk ranking for shares and market cap.
 
 ## Data sources
 
