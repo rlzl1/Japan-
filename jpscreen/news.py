@@ -114,8 +114,8 @@ def short_name(name: str) -> str:
 
 # English titles for routine Japanese disclosure titles; anything else is translated in the refresh.
 TITLE_EN = [
+    (r"(中間期|第[2２]四半期).*決算短信", "H1 earnings report"),
     (r"第([1-3１-３])四半期.*決算短信", lambda m: f"Q{nfkc(m.group(1))} earnings report"),
-    (r"(中間期|第2四半期).*決算短信", "H1 earnings report"),
     (r"決算短信", "Full-year earnings report"),
     (r"決算説明(資料|会)", "Results presentation"),
     (r"業績予想(および|及び|並びに)配当予想の修正", "Earnings and dividend forecast revision"),

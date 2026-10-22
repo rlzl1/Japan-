@@ -110,3 +110,7 @@ def test_short_en():
     assert short_en("THE ZENITAKA CORPORATION") == "Zenitaka"
     assert short_en("Isamu Paint Co.,Ltd.") == "Isamu Paint"
     assert short_en("NTT DATA GROUP CORPORATION") == "NTT Data Group"
+
+
+def test_title_en_half_year():
+    assert title_en("2027年3月期 第2四半期(中間期)決算短信〔日本基準〕(連結)") == "H1 earnings report"
