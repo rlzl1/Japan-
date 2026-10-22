@@ -91,17 +91,23 @@ def parse_quote_page(code: str, sym: str, html: str) -> Optional[Quote]:
 
 
 def parse_history_page(html: str) -> list[tuple[str, float, float]]:
+    """(date, close, volume) rows of the daily price table only (the page also carries margin-balance tables)."""
     s = html.replace('\\"', '"')
     i = s.find('"histories":[')
     if i < 0:
         return []
+    try:
+        arr, _ = json.JSONDecoder().raw_decode(s[i + len('"histories":'):])
+    except ValueError:
+        return []
     out = []
-    for m in re.finditer(r'\{"date":"(\d{4}-\d{2}-\d{2})","values":\[(.*?)\]\}', s[i:i + 60000]):
-        vals = re.findall(r'"value":"([^"]*)"', m.group(2))
-        if len(vals) >= 5:
-            close, vol = _num(vals[3]), _num(vals[4])
-            if close is not None:
-                out.append((m.group(1), close, vol or 0.0))
+    for row in arr if isinstance(arr, list) else []:
+        vals = [v.get("value") for v in (row.get("values") or []) if isinstance(v, dict)]
+        if not re.match(r"\d{4}-\d{2}-\d{2}$", str(row.get("date") or "")) or len(vals) < 5:
+            continue
+        close, vol = _num(vals[3]), _num(vals[4])
+        if close is not None:
+            out.append((row["date"], close, vol or 0.0))
     return out
 
 

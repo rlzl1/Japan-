@@ -46,3 +46,10 @@ def test_acquirer_side_attaches_to_target():
 def test_parent_and_board_flags():
     tag = classify("当社親会社であるヒューリック株式会社による当社株券等に対する公開買付けに関する賛同の意見表明及び応募推奨のお知らせ", "47140")
     assert tag.flags.get("parent") and tag.flags.get("board_view") == "support"
+
+
+def test_routine_defence_policy_is_not_a_fight():
+    assert classify("当社株式の大規模買付行為に関する対応方針(買収への対応方針)の継続について", "65130") is None
+    assert classify("当社株式の大規模買付行為に関する対応方針(買収への対応方針)における 特別委員会の委員選任に関するお知らせ", "96330") is None
+    tag = classify("大規模買付者に対する対抗措置の発動（新株予約権無償割当て）に関するお知らせ", "12340")
+    assert tag is not None and tag.flags.get("defense")

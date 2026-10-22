@@ -168,7 +168,8 @@ def reference_row(ref: dict, q: Optional[Quote]) -> ValueRow:
     r.pb = float(ref["pbr"]) if ref.get("pbr") else None
     if q and q.price:
         r.price, r.price_date, r.adv = q.price, q.price_date, q.adv
-        base = next((c for d, c, _ in q.history if d == ref.get("asof")), None)
+        # close on the reference date, or the last trade before it for stocks that did not trade that day
+        base = next((c for d, c, _ in sorted(q.history, reverse=True) if d <= ref.get("asof", "")), None)
         if base:
             move = q.price / base
             r.mcap = mcap * move

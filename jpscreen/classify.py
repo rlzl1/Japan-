@@ -182,6 +182,11 @@ def classify_catalyst(n: str, raw: str, code: str) -> Optional[Tag]:
     if RESULT.search(n):
         return None
 
+    # -------- standing takeover-defence policies: renewals and committee changes are routine, not a fight
+    if re.search(r"買収への対応方針|大規模買付行為(等)?(に関する|への)対応(方針|策)|買収防衛策", n) and not re.search(
+            r"対抗措置|無償割当|発動|大規模買付者|情報提供(の)?要請|株主意思|特定株主|買付者", n):
+        return None
+
     # -------- squeeze-outs (after a successful bid)
     if re.search(r"株式等売渡請求|売渡請求|スクイーズアウト", n) or (
             "株式併合" in n and re.search(r"臨時株主総会|上場廃止|整理銘柄", n) and "単元" not in n):
