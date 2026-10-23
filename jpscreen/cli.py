@@ -161,6 +161,7 @@ def main(argv=None):
     if args.cmd == "port":
         cmd_port(args, ctx, edinet)
     if args.cmd == "port-apply":
+        import json as _json
         from .portfolio import apply_translations, load_saved, save
         out = Path(args.state) / "portfolio"
         res = load_saved(out)
