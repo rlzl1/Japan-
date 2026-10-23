@@ -230,6 +230,8 @@ def edge_points(h: dict, kind: str, cid: str, cat: dict, flags: dict) -> tuple[f
         else:
             e = 0.5
     elif cid == "listing":
+        if flags.get("resolved"):
+            why.append("meets the listing criteria again: the exchange review is lifted (the earlier warning is resolved)")
         if flags.get("breach"):
             e = 0.5
             why.append("does not meet TSE listing criteria: MBOs, parent buy-outs and market changes cluster here")
@@ -294,7 +296,8 @@ def edge_points(h: dict, kind: str, cid: str, cat: dict, flags: dict) -> tuple[f
         oc = cat.get("op_chg")
         if oc is not None:
             e = 1.0 if oc >= 30 else 0.5 if oc >= 10 else 0.0
-            why.append(f"operating-profit forecast {oc:+.0f}% vs the previous one")
+            why.append(f"operating-profit forecast {oc:+.0f}% vs "
+                       + ("last year's result (first forecast after one was withheld)" if cat.get("first_forecast") else "the previous one"))
         if (cat.get("div_raise_pct") or 0) >= 20:
             e += 0.5
             why.append("dividend raised with it")

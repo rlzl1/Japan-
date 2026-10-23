@@ -90,8 +90,9 @@ def parse_quote_page(code: str, sym: str, html: str) -> Optional[Quote]:
     return q
 
 
-def parse_history_page(html: str) -> list[tuple[str, float, float]]:
-    """(date, close, volume) rows of the daily price table only (the page also carries margin-balance tables)."""
+def parse_history_page(html: str, adjusted: bool = False) -> list[tuple[str, float, float]]:
+    """(date, close, volume) rows of the daily price table only (the page also carries margin-balance tables).
+    adjusted=True takes the split-adjusted close (the row's sixth value), for returns across splits."""
     s = html.replace('\\"', '"')
     i = s.find('"histories":[')
     if i < 0:
@@ -105,7 +106,7 @@ def parse_history_page(html: str) -> list[tuple[str, float, float]]:
         vals = [v.get("value") for v in (row.get("values") or []) if isinstance(v, dict)]
         if not re.match(r"\d{4}-\d{2}-\d{2}$", str(row.get("date") or "")) or len(vals) < 5:
             continue
-        close, vol = _num(vals[3]), _num(vals[4])
+        close, vol = _num(vals[5] if adjusted and len(vals) > 5 else vals[3]), _num(vals[4])
         if close is not None:
             out.append((row["date"], close, vol or 0.0))
     return out

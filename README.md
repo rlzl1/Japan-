@@ -91,6 +91,19 @@ page's owner and editors.
 Yahoo! Finance's quote and history pages fail intermittently (HTTP 500); a quote then falls back to the history
 page for price, date and liquidity, and to the bulk ranking for shares and market cap.
 
+## Backtest
+
+```
+python3 -m jpscreen backtest --codes 1897,2814,4624,9478 --months 12
+```
+
+Replays each company's TDnet disclosures over the window through the radar (classified, PDFs read, falling back
+to Kabutan's permanent mirror for those TDnet has deleted, rated with the price and liquidity of the day) and
+records the stock's return and its excess over the TOPIX ETF (1306, split-adjusted closes) 1 week, 1 month and
+3 months after the next session. Without `--codes` it takes your holdings. Output: `state/backtest.json`.
+Fundamentals are today's, so value points carry some hindsight; edge and risk use only the filing and the
+prices of the time.
+
 ## Data sources
 
 | Data | Source | Key |

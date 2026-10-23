@@ -86,8 +86,8 @@ def history_signals(disclosures: Iterable, since: dt.date) -> list[dict]:
         if d.date < since:
             continue
         tag = classify(d.title, d.code)
-        if not tag:
-            continue
+        if not tag or tag.flags.get("resolved"):
+            continue            # an exchange review lifted is not pressure to do a deal
         kind = tag.kind
         keep = kind in ("strategic", "rumor", "listing", "holding", "proxy_fight", "control_change", "control_dispute",
                         "tender_offer", "squeeze_out", "self_tender", "value_up", "buyback", "liquidation")

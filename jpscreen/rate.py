@@ -201,6 +201,8 @@ def evaluate(h: dict, tag: Tag, cat: dict, q: Optional[Quote], f: Optional[Funda
         if cat.get("reason"):
             bits.append(cat["reason"][:80])
     elif k == "listing":
+        if tag.flags.get("resolved"):
+            bits.append("listing criteria met, exchange review lifted")
         if cat.get("criteria"):
             bits.append("criteria: " + "/".join(cat["criteria"]))
         if tag.flags.get("improvement_period"):
@@ -264,9 +266,10 @@ def evaluate(h: dict, tag: Tag, cat: dict, q: Optional[Quote], f: Optional[Funda
         if cat.get("snippet"):
             bits.append("“" + cat["snippet"][:140] + "…”")
     elif k == "guidance":
+        vs = "last year (first forecast)" if cat.get("first_forecast") else "prior forecast"
         for key, lab in (("op_chg", "op. profit"), ("ni_chg", "net profit")):
             if cat.get(key) is not None:
-                bits.append(f"{lab} {cat[key]:+.0f}% vs prior forecast")
+                bits.append(f"{lab} {cat[key]:+.0f}% vs {vs}")
         if cat.get("div_raise_pct") is not None:
             bits.append(f"dividend {cat['div_raise_pct']:+.0f}%")
     elif k == "asset_sale":

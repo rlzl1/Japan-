@@ -375,20 +375,58 @@ def _row_numbers(line: Optional[str], label_end: str) -> list[Optional[float]]:
     return vals
 
 
+GUIDE_NEW = re.compile(r"^(今回修正予想|今回予想|修正予想|実績値|今回発表予想|当期実績)")
+GUIDE_PREV = re.compile(r"^(前回発表予想|前回予想|前回公表予想)")
+GUIDE_PRIOR = re.compile(r"^(\(参考\))?前期(通期)?実績")
+
+
+def _numbers_near(lines: list[str], i: int, label: str) -> list[Optional[float]]:
+    """The row's numbers: on the label's own line, or on the next line when the PDF split the row."""
+    vals = _row_numbers(lines[i], label)
+    if not any(v is not None for v in vals) and i + 1 < len(lines):
+        nxt = lines[i + 1]
+        if re.match(r"^\s*[△▲\-―ー－\d]", nfkc(nxt)):
+            vals = _row_numbers("x " + nxt, label)
+    return vals
+
+
 def parse_guidance(text: str) -> dict:
+    """Forecast revisions, and first forecasts after one was withheld (未定): the full-year consolidated table,
+    against the previous forecast or, for a first forecast, against last year's actual result."""
     lines = _lines(text)
+    sq = [re.sub(r"\s+", "", nfkc(ln)) for ln in lines]
+    rows = [i for i, x in enumerate(sq) if GUIDE_NEW.search(x)]
     out: dict = {}
-    a = _label_line(lines, r"^(前回発表予想|前回予想|前回公表予想)")
-    b = _label_line(lines, r"^(今回修正予想|今回予想|修正予想|実績値|今回発表予想|当期実績)")
-    ra, rb = _row_numbers(a, "A"), _row_numbers(b, "B")
     names = ["sales", "op", "ord", "ni"]
-    for i, nm in enumerate(names):
-        va = ra[i] if i < len(ra) else None
-        vb = rb[i] if i < len(rb) else None
-        out[nm + "_prev"], out[nm + "_new"] = va, vb
-        if va is not None and vb is not None:
-            out[nm + "_chg"] = ((vb - va) / abs(va) * 100) if va else None
-            out[nm + "_delta"] = vb - va
+    if rows:
+        def header_score(i):
+            prev_row = max([r for r in rows if r < i], default=-1)
+            head = "".join(sq[max(prev_row + 1, i - 16):i])
+            sc = 2 if "通期" in head else 0
+            if re.search(r"第2四半期|中間期|累計", head):
+                sc -= 1
+            if "個別" in head and "連結" in "".join(sq):
+                sc -= 2
+            return sc
+        bi = max(rows, key=lambda i: (header_score(i), -i))
+        prev_rows = [i for i, x in enumerate(sq[:bi]) if GUIDE_PREV.search(x)]
+        ai = prev_rows[-1] if prev_rows and bi - prev_rows[-1] <= 8 else None
+        ra = _numbers_near(lines, ai, "A") if ai is not None else []
+        rb = _numbers_near(lines, bi, "B")
+        if not any(v is not None for v in ra[:4]):
+            # a first forecast (the previous one was "-" / 未定): compare with last year's actual result
+            pi = next((i for i in range(bi + 1, min(bi + 10, len(sq))) if GUIDE_PRIOR.search(sq[i])), None)
+            if pi is not None:
+                ra = _numbers_near(lines, pi, "")
+                if any(v is not None for v in ra[:4]):
+                    out["first_forecast"] = True
+        for i, nm in enumerate(names):
+            va = ra[i] if i < len(ra) else None
+            vb = rb[i] if i < len(rb) else None
+            out[nm + "_prev"], out[nm + "_new"] = va, vb
+            if va is not None and vb is not None:
+                out[nm + "_chg"] = ((vb - va) / abs(va) * 100) if va else None
+                out[nm + "_delta"] = vb - va
     out["direction"] = None
     for nm in ("op", "ni", "sales"):
         d = out.get(nm + "_delta")

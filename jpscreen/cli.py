@@ -5,6 +5,7 @@
   python -m jpscreen edinet  [--months 15] [--limit N]             refresh fundamentals from EDINET (needs key)
   python -m jpscreen all     [--days 1]                            edinet (if key) + value + radar + export
   python -m jpscreen export                                        Excel workbook + dashboard data from state/
+  python -m jpscreen backtest --codes 4624,9478 --months 12        replay those companies' filings, returns vs TOPIX
 
 Environment: EDINET_API_KEY (free, https://api.edinet-fsa.go.jp/) unlocks whole-market fundamentals,
 the rental real-estate notes and 5% holding reports. Without it the radar still runs on TDnet and the
@@ -119,7 +120,8 @@ def cmd_port(args, ctx, edinet):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["radar", "value", "edinet", "all", "export", "port", "port-apply", "daily", "batches"])
+    ap.add_argument("cmd", choices=["radar", "value", "edinet", "all", "export", "port", "port-apply", "daily", "batches",
+                                    "backtest"])
     ap.add_argument("--db-dir", help="the dashboard database downloaded as JSON files (one folder per collection)")
     ap.add_argument("--versions", help="JSON {\"collection/doc\": version} of the downloaded documents")
     ap.add_argument("--weekly", action="store_true", help="daily: also rerun the whole-market value screen")
@@ -159,7 +161,6 @@ def main(argv=None):
     if args.cmd == "port":
         cmd_port(args, ctx, edinet)
     if args.cmd == "port-apply":
-        import json as _json
         from .portfolio import apply_translations, load_saved, save
         out = Path(args.state) / "portfolio"
         res = load_saved(out)
@@ -168,6 +169,12 @@ def main(argv=None):
         print(f"applied {n} translations; {len(res['to_translate'])} titles still untranslated")
     if args.cmd == "daily":
         cmd_daily(args, ctx, edinet)
+    if args.cmd == "backtest":
+        from .backtest import run as backtest
+        codes = [c for c in args.codes.split(",") if c] or list(load_mine(args.watchlist))
+        res = backtest(ctx, codes, months=args.months)
+        ctx.store.write_json("backtest.json", res)
+        print("wrote", Path(args.state) / "backtest.json")
     if args.cmd in ("export", "all", "radar", "value", "port", "port-apply", "daily"):
         paths = export_all(ctx.store)
         for p in paths:

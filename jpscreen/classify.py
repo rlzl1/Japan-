@@ -247,6 +247,9 @@ def classify_catalyst(n: str, raw: str, code: str) -> Optional[Tag]:
         return Tag("holding", "catalyst", flags={"selling": bool(re.search(r"売却|譲渡", n))})
 
     # -------- listing criteria
+    if re.search(r"監理銘柄.*解除|指定(の)?解除", n) or (re.search(r"上場維持基準", n) and re.search(r"適合(したこと|及び|のお知らせ)", n)
+                                                     and not re.search(r"不適合|適合しない", n)):
+        return Tag("listing", "catalyst", flags={"resolved": True})   # the all-clear after an exchange review
     if re.search(r"上場維持基準", n):
         if re.search(r"不適合|適合しない|改善期間|に向けた計画|未達|に関する計画|進捗", n):
             return Tag("listing", "catalyst", flags={

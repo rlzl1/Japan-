@@ -61,3 +61,13 @@ def test_amounts():
     assert parse_amount("12億円") == 1_200_000_000
     assert parse_amount("35億4,000万円") == 3_540_000_000
     assert parse_amount("1,000,000千円") == 1_000_000_000
+
+
+def test_guidance_first_forecast_full_year_vs_last_year():
+    """Isamu Paint, 5 Aug 2026: the forecast withheld in May, published with a half-year and a full-year table."""
+    from pathlib import Path
+    from jpscreen.docparse import parse_guidance
+    r = parse_guidance((Path(__file__).parent / "fixtures" / "guidance_4624_first.txt").read_text())
+    assert r["first_forecast"] and r["direction"] == "up"
+    assert r["op_new"] == 1060 and r["op_prev"] == 915 and round(r["op_chg"]) == 16
+    assert r["ord_new"] == 1240 and r["ord_prev"] == 1077
