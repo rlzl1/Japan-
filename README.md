@@ -80,13 +80,13 @@ the same parts, with edge from radar events on the company (120 days) or standin
 
 ## Scheduled refresh
 
-Each weekday a fresh session restores state from the dashboard's database (`cache/fund_*` holds the
-fundamentals of every listed company), reads new EDINET filings, scans TDnet, rebuilds the portfolio (holdings
-from the Tokyo Filings Tracker plus positions added on the page), translates new titles, and writes back only
-the documents that changed (`state/out/batches.json`, pinned to their versions). Mondays also rerun the
-whole-market value screen. The REFRESH button on the PORT tab starts the same task on demand. The task's prompt is
-`docs/refresh_prompt.md` (weekdays 19:37 JST). Holdings, positions and the REFRESH button are visible only to the
-page's owner and editors.
+Tuesday to Saturday at 06:06 JST, after each trading day and before the open, a fresh session restores state
+from the dashboard's database (`cache/fund_*` holds the fundamentals of every listed company), reads new EDINET
+filings, scans TDnet, rebuilds the portfolio (holdings from the Tokyo Filings Tracker plus positions added on the
+page), translates new titles, and writes back only the documents that changed (`state/out/batches.json`, pinned
+to their versions). Saturdays also rerun the whole-market value screen on Friday's close. The REFRESH button on
+the PORT tab starts the same task on demand. The task's prompt is `docs/refresh_prompt.md`. Holdings, positions
+and the REFRESH button are visible only to the page's owner and editors.
 
 Yahoo! Finance's quote and history pages fail intermittently (HTTP 500); a quote then falls back to the history
 page for price, date and liquidity, and to the bulk ranking for shares and market cap.

@@ -482,7 +482,7 @@ table.t tr.mine td.nm b { color: var(--key); }
 
   <!-- ===================== HELP ===================== -->
   <section class="pane help" id="help" hidden>
-    <p>The radar reads every TDnet disclosure each weekday evening (Mondays include the weekend) and rates it; the value screen and pre-deal radar run weekly over every listed company. Prices are Yahoo! Finance Japan closes, usually the same day, so check the live price before acting. Nothing here is investment advice.</p>
+    <p>The radar reads every TDnet disclosure early each morning, Tuesday to Saturday at 06:06 JST, covering the previous trading day, and rates it; the value screen and pre-deal radar rerun over every listed company on Saturdays. Prices are the previous Yahoo! Finance Japan close, so check the live price before acting. Nothing here is investment advice.</p>
     <section class="g-all">
       <h3>Stars</h3>
       <dl>
@@ -1276,7 +1276,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     const busy = refreshRunning();
     b.disabled = busy || !dbRef || canAdmin === false;
     b.textContent = busy ? "REFRESHING…" : "REFRESH";
-    st.textContent = note || (busy ? "Running since " + (cfg.startedAt || cfg.requestedAt || "").slice(11, 16) + " UTC: scan, portfolio and translations, usually 15–30 min (longer on Mondays, when the whole market is re-screened)."
+    st.textContent = note || (busy ? "Running since " + (cfg.startedAt || cfg.requestedAt || "").slice(11, 16) + " UTC: scan, portfolio and translations, usually 15–30 min (longer on Saturdays, when the whole market is re-screened)."
       : cfg ? "Last refresh " + ((cfg.lastRunAt || "").replace("T", " ").slice(0, 16) || "never") + " UTC" + (cfg.lastSummary ? " · " + cfg.lastSummary : "") + (cfg.schedule ? " · " + cfg.schedule : "")
       : "Refresh task not set up yet.");
   }
@@ -1300,10 +1300,10 @@ table.t tr.mine td.nm b { color: var(--key); }
   });
   setInterval(() => { if (cfg) renderRefresh(); }, 60e3);
   const MARKET = { name: "TSE", tz: "Asia/Tokyo", open: 9 * 60, close: 15 * 60 + 30, zone: "JST" };
-  const SCHED = { tz: "Asia/Tokyo", h: 19, m: 37, run: "15–30 min", longRun: "45–60 min" };   // weekdays; Mondays rescreen the market
+  const SCHED = { tz: "Asia/Tokyo", h: 6, m: 6, days: [2, 3, 4, 5, 6], longDay: 6, run: "15–30 min", longRun: "45–60 min" };   // Tue–Sat mornings, after each trading day; Saturdays rescreen the market
   const startRefreshFromStatus = () => { const b = $("refresh-btn"); if (b && !b.disabled) b.click(); else showView("port"); };
   // ---- data status line: is the latest close in, when was it refreshed, when is the next refresh
-  // (weekday schedule and market hours below; exchange holidays are not modelled, but "up to date" only needs a
+  // (refresh schedule and market hours below; exchange holidays are not modelled, but "up to date" only needs a
   // refresh that finished after the latest close)
   function tzParts(date, tz) {
     const o = {};
@@ -1317,12 +1317,12 @@ table.t tr.mine td.nm b { color: var(--key); }
     for (let i = 0; i < 3; i++) { const p = tzParts(new Date(t), tz); t += want - Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi); }
     return new Date(t);
   }
-  function weekdayTimes(now, tz, h, mi, back) { // weekday occurrences of h:mi in tz around now: [latest past, next]
+  function weekdayTimes(now, tz, h, mi, days) { // occurrences of h:mi in tz on `days` (0 = Sun; default Mon–Fri) around now: [latest past, next]
     const p = tzParts(now, tz);
     let prev = null, next = null;
-    for (let k = -(back || 8); k <= 8; k++) {
+    for (let k = -8; k <= 8; k++) {
       const b = new Date(Date.UTC(p.y, p.mo - 1, p.d + k, 12));
-      if (b.getUTCDay() === 0 || b.getUTCDay() === 6) continue;
+      if (!(days || [1, 2, 3, 4, 5]).includes(b.getUTCDay())) continue;
       const t = zoned(b.getUTCFullYear(), b.getUTCMonth() + 1, b.getUTCDate(), h, mi, tz);
       if (t <= now) prev = t; else if (!next) next = t;
     }
@@ -1349,7 +1349,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     if (!box) return;
     const now = new Date();
     const lastClose = weekdayTimes(now, MARKET.tz, Math.floor(MARKET.close / 60), MARKET.close % 60)[0];
-    const [prevRun, nextRun] = weekdayTimes(now, SCHED.tz, SCHED.h, SCHED.m);
+    const [prevRun, nextRun] = weekdayTimes(now, SCHED.tz, SCHED.h, SCHED.m, SCHED.days);
     const last = cfg && cfg.lastRunAt ? new Date(cfg.lastRunAt) : null;
     const mp = tzParts(now, MARKET.tz), mins = mp.h * 60 + mp.mi;
     const isOpen = mp.wd >= 1 && mp.wd <= 5 && mins >= MARKET.open && mins < MARKET.close;
@@ -1359,7 +1359,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     if (refreshRunning()) {
       const st = new Date(cfg.startedAt || cfg.requestedAt);
       s = "run"; pill = "REFRESHING";
-      parts.push("started " + stampStr(st, now), "usually " + (tzParts(st, MARKET.tz).wd === 1 ? SCHED.longRun : SCHED.run) + ", results land here by themselves");
+      parts.push("started " + stampStr(st, now), "usually " + (tzParts(st, MARKET.tz).wd === SCHED.longDay ? SCHED.longRun : SCHED.run) + ", results land here by themselves");
     } else if (cfg && cfg.state === "error") {
       s = "fail"; pill = "LAST REFRESH FAILED";
       parts.push(String(cfg.lastError || "the scheduled run stopped").slice(0, 120), last ? "data from " + stampStr(last, now) : "", nextTxt);

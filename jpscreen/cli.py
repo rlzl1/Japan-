@@ -187,7 +187,9 @@ def main(argv=None):
 
 def cmd_daily(args, ctx, edinet):
     """One refresh, as the scheduled task runs it: restore state from the page's database, read new EDINET filings,
-    rerun the value screen on Mondays (or --weekly), scan TDnet, rebuild the portfolio."""
+    rerun the value screen on Saturdays (or --weekly), scan TDnet, rebuild the portfolio.
+    The task runs Tuesday to Saturday at 06:06 JST, after each trading day: Saturday's run, on Friday's close,
+    re-screens the whole market."""
     import json as _json
     from .dbsync import collection_files, load_value_tags, restore_store
     db = args.db_dir
@@ -212,7 +214,7 @@ def cmd_daily(args, ctx, edinet):
         refresh_edinet(ctx, edinet, since=since, skip_fresh_days=1)
     else:
         print("EDINET_API_KEY not set: fundamentals not refreshed this run")
-    weekly = args.weekly or today.weekday() == 0 or not ctx.value_tags
+    weekly = args.weekly or today.weekday() == 5 or not ctx.value_tags
     if weekly:
         cmd_value(args, ctx, edinet)
         value = ctx.store.read_json("value.json", {})
