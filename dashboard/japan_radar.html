@@ -78,6 +78,23 @@ button, input, select { font: inherit; color: inherit; }
 .fk span.n { color: var(--muted); }
 .fk[aria-selected="true"] span.n { color: #3a2400; }
 
+/* ---- data status line: fresh or not, and when the next refresh comes */
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; border: 1px solid var(--line-hi); background: var(--panel);
+  padding: 6px 10px; font-family: var(--font-data); font-size: 0.76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.status:empty { display: none; }
+.status .pill { font-weight: 600; letter-spacing: 0.05em; padding: 1px 7px; color: #000; background: var(--muted); white-space: nowrap; }
+.status .sep { color: var(--line-hi); }
+.status[data-s="ok"] .pill { background: var(--pos); }
+.status[data-s="open"] .pill, .status[data-s="run"] .pill { background: var(--blue); }
+.status[data-s="pending"] .pill { background: var(--key); }
+.status[data-s="missed"], .status[data-s="fail"] { border-color: var(--neg); }
+.status[data-s="missed"] .pill, .status[data-s="fail"] .pill { background: var(--neg); }
+.status .st-go { margin-left: auto; background: var(--key); color: var(--key-ink); border: 0; padding: 3px 10px; font: inherit; font-weight: 600; cursor: pointer; }
+@media (prefers-reduced-motion: no-preference) {
+  .status[data-s="run"] .pill { animation: st-pulse 1.6s ease-in-out infinite; }
+  @keyframes st-pulse { 50% { opacity: 0.55; } }
+}
+
 /* ---- status tape */
 .tape { display: flex; flex-wrap: wrap; gap: 4px 18px; font-family: var(--font-data); font-size: 0.76rem; color: var(--muted);
   font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -312,6 +329,7 @@ table.t tr.mine td.nm b { color: var(--key); }
 </style>
 
 <div class="wrap">
+  <div class="status" id="status" role="region" aria-label="Data status"></div>
   <header class="top">
     <div class="brand"><b>JP</b><h1>Japan Filing Radar</h1></div>
     <form class="cmd" id="cmd" autocomplete="off">
@@ -1281,6 +1299,103 @@ table.t tr.mine td.nm b { color: var(--key); }
     }
   });
   setInterval(() => { if (cfg) renderRefresh(); }, 60e3);
+  const MARKET = { name: "TSE", tz: "Asia/Tokyo", open: 9 * 60, close: 15 * 60 + 30, zone: "JST" };
+  const SCHED = { tz: "Asia/Tokyo", h: 19, m: 37, run: "15–30 min", longRun: "45–60 min" };   // weekdays; Mondays rescreen the market
+  const startRefreshFromStatus = () => { const b = $("refresh-btn"); if (b && !b.disabled) b.click(); else showView("port"); };
+  // ---- data status line: is the latest close in, when was it refreshed, when is the next refresh
+  // (weekday schedule and market hours below; exchange holidays are not modelled, but "up to date" only needs a
+  // refresh that finished after the latest close)
+  function tzParts(date, tz) {
+    const o = {};
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit",
+      minute: "2-digit", hourCycle: "h23", weekday: "short" }).formatToParts(date).forEach((p) => { o[p.type] = p.value; });
+    return { y: +o.year, mo: +o.month, d: +o.day, h: +o.hour % 24, mi: +o.minute, wd: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(o.weekday) };
+  }
+  function zoned(y, mo, d, h, mi, tz) {        // the instant when the wall clock in tz shows y-mo-d h:mi
+    const want = Date.UTC(y, mo - 1, d, h, mi);
+    let t = want;
+    for (let i = 0; i < 3; i++) { const p = tzParts(new Date(t), tz); t += want - Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi); }
+    return new Date(t);
+  }
+  function weekdayTimes(now, tz, h, mi, back) { // weekday occurrences of h:mi in tz around now: [latest past, next]
+    const p = tzParts(now, tz);
+    let prev = null, next = null;
+    for (let k = -(back || 8); k <= 8; k++) {
+      const b = new Date(Date.UTC(p.y, p.mo - 1, p.d + k, 12));
+      if (b.getUTCDay() === 0 || b.getUTCDay() === 6) continue;
+      const t = zoned(b.getUTCFullYear(), b.getUTCMonth() + 1, b.getUTCDate(), h, mi, tz);
+      if (t <= now) prev = t; else if (!next) next = t;
+    }
+    return [prev, next];
+  }
+  const fmtDay = (d, tz) => d.toLocaleDateString("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short" }).replace(",", "");
+  const fmtHm = (d, tz) => d.toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  function relTime(ms) {
+    const m = Math.max(0, Math.round(ms / 60000));
+    if (m < 60) return m + " min";
+    const h = Math.floor(m / 60);
+    return h < 24 ? h + "h " + String(m % 60).padStart(2, "0") + "m" : Math.floor(h / 24) + "d " + (h % 24) + "h";
+  }
+  let viewerTz = null;
+  try { viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+  function whenStr(d, now) {
+    const day = fmtDay(d, MARKET.tz) === fmtDay(now, MARKET.tz) ? "today" : fmtDay(d, MARKET.tz);
+    const mine = viewerTz && fmtHm(d, viewerTz) !== fmtHm(d, MARKET.tz) ? " (" + fmtHm(d, viewerTz) + " your time)" : "";
+    return day + " " + fmtHm(d, MARKET.tz) + " " + MARKET.zone + mine;
+  }
+  const stampStr = (d, now) => (fmtDay(d, MARKET.tz) === fmtDay(now, MARKET.tz) ? "today" : fmtDay(d, MARKET.tz)) + " " + fmtHm(d, MARKET.tz) + " " + MARKET.zone;
+  function renderStatus() {
+    const box = $("status");
+    if (!box) return;
+    const now = new Date();
+    const lastClose = weekdayTimes(now, MARKET.tz, Math.floor(MARKET.close / 60), MARKET.close % 60)[0];
+    const [prevRun, nextRun] = weekdayTimes(now, SCHED.tz, SCHED.h, SCHED.m);
+    const last = cfg && cfg.lastRunAt ? new Date(cfg.lastRunAt) : null;
+    const mp = tzParts(now, MARKET.tz), mins = mp.h * 60 + mp.mi;
+    const isOpen = mp.wd >= 1 && mp.wd <= 5 && mins >= MARKET.open && mins < MARKET.close;
+    const nextTxt = nextRun ? "next refresh " + whenStr(nextRun, now) + ", in " + relTime(nextRun - now) : "";
+    const closeDay = lastClose ? fmtDay(lastClose, MARKET.tz) : "";
+    let s, pill, parts = [], act = false;
+    if (refreshRunning()) {
+      const st = new Date(cfg.startedAt || cfg.requestedAt);
+      s = "run"; pill = "REFRESHING";
+      parts.push("started " + stampStr(st, now), "usually " + (tzParts(st, MARKET.tz).wd === 1 ? SCHED.longRun : SCHED.run) + ", results land here by themselves");
+    } else if (cfg && cfg.state === "error") {
+      s = "fail"; pill = "LAST REFRESH FAILED";
+      parts.push(String(cfg.lastError || "the scheduled run stopped").slice(0, 120), last ? "data from " + stampStr(last, now) : "", nextTxt);
+      act = true;
+    } else if (!last) {
+      s = "missed"; pill = "NOT REFRESHED YET"; parts.push(nextTxt);
+    } else if (lastClose && last >= lastClose) {
+      s = isOpen ? "open" : "ok"; pill = isOpen ? MARKET.name + " OPEN" : "UP TO DATE";
+      parts.push((isOpen ? "data includes the last close (" : "includes the " + MARKET.name + " close of ") + closeDay + (isOpen ? ")" : ""),
+        "refreshed " + stampStr(last, now), nextTxt);
+    } else if (prevRun && lastClose && prevRun > lastClose) {
+      if (now - prevRun < 90 * 60e3) {
+        s = "pending"; pill = "REFRESH DUE";
+        parts.push("the " + fmtHm(prevRun, MARKET.tz) + " " + MARKET.zone + " run has not reported yet; " + SCHED.run + " is usual", "data from " + stampStr(last, now));
+      } else {
+        s = "missed"; pill = "REFRESH MISSED";
+        parts.push(closeDay + " close not in: the " + fmtHm(prevRun, MARKET.tz) + " " + MARKET.zone + " run did not finish (often the account's usage limit)",
+          "data from " + stampStr(last, now), nextTxt);
+        act = true;
+      }
+    } else {
+      s = "pending"; pill = MARKET.name + " CLOSED · " + closeDay.toUpperCase() + " CLOSE NOT IN YET";
+      parts.push("it lands with the refresh " + (nextRun ? whenStr(nextRun, now) + ", in " + relTime(nextRun - now) : ""), "data now from " + stampStr(last, now));
+    }
+    box.dataset.s = s;
+    box.replaceChildren();
+    box.append(el("span", "pill", pill));
+    parts.filter(Boolean).forEach((t, i) => { if (i) box.append(el("span", "sep", "·")); box.append(el("span", null, t)); });
+    if (act && canAdmin !== false) {
+      const b = el("button", "st-go", "REFRESH NOW"); b.type = "button";
+      b.addEventListener("click", startRefreshFromStatus);
+      box.append(b);
+    }
+  }
+  setInterval(renderStatus, 30e3);
+
 
   function positionBlock(code) {
     const h = holdingsMerged().find((x) => x.code === code);
@@ -1514,7 +1629,7 @@ table.t tr.mine td.nm b { color: var(--key); }
       uni = d ? (d.data().rows || {}) : {}; uniEn = e ? (e.data().rows || {}) : {};
       renderAll();
     }, () => {});
-    db.doc("config/refresh").onSnapshot((snap) => { cfg = snap.exists ? snap.data() : null; renderRefresh(); }, () => {});
+    db.doc("config/refresh").onSnapshot((snap) => { cfg = snap.exists ? snap.data() : null; renderRefresh(); renderStatus(); }, () => {});
     renderRefresh();
   })();
   (async () => { mcp = await window.claude?.use?.("mcp"); })();
@@ -1522,6 +1637,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     // holdings and the refresh are for the owner and editors (the database rules hide them from everyone else)
     const u = await window.claude?.use?.("user");
     canAdmin = u ? await u.canEdit() : null;
+    renderStatus();
     if (canAdmin === false) { $("add-form").hidden = true; $("refresh-btn").hidden = true; }
     renderPort(); renderRefresh();
   })();
