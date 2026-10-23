@@ -14,12 +14,14 @@ STEPS
 1. Code. If /home/user/Japan- does not exist, `git clone https://github.com/rlzl1/Japan-.git /home/user/Japan-`.
    Then in /home/user/Japan-: `git fetch origin claude/japan-screening-tool-kmy641 && git checkout -B
    claude/japan-screening-tool-kmy641 origin/claude/japan-screening-tool-kmy641`. If
-   `python3 -c "import requests, pandas, openpyxl, lxml, pypdf"` fails, `pip install -r requirements.txt`.
+   `python3 -c "import requests, pandas, openpyxl, lxml, pypdf"` fails, `python3 -m pip install -r requirements.txt`
+   (use `python3 -m pip`, not `pip`: they can belong to different Pythons).
    Work from /home/user/Japan- for every command below.
 2. Status. ArtifactData "get" RADAR config/refresh. Update it ("update", pinned with if_version) with
    state "running" and startedAt = the current UTC time (ISO 8601). Keep the version that update returns.
 3. Download. For each collection cache, runs, watchlist, frontrun, mine, portfolio, positions, universe, config of
-   RADAR: ArtifactData "list" with query {"limit": 1000} and out_dir "/home/user/Japan-/state/inputs/db". Write
+   RADAR: ArtifactData "list" with query {"limit": 1000} and out_dir "/home/user/Japan-/state/inputs/db"; when a result
+   says more pages remain (cache does: 48 documents), list again with its next_cursor until none remain. Write
    /home/user/Japan-/state/inputs/versions.json as one JSON object {"<collection>/<doc_id>": <version>} with the
    version of every document those list results show (they print one line per document with its version).
    Then list TRACKER's `stocks` collection with out_dir "/home/user/Japan-/state/inputs/tracker".
