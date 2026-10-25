@@ -236,9 +236,11 @@ class PriceBook:
                 q.year_low = min(q.year_low or q.price, q.price)
         self.quotes[code] = q
 
-    def prefetch(self, wanted: dict[str, list[str]], workers: int = 4, store: bool = True) -> None:
+    def prefetch(self, wanted: dict[str, list[str]], workers: int = 4, store: bool = True, light: bool = False) -> None:
         """Fetch many quotes in parallel (each worker has its own session; responses share the disk cache unless
-        store=False, for whole-market passes that would otherwise leave thousands of pages on disk)."""
+        store=False, for whole-market passes that would otherwise leave thousands of pages on disk).
+        light=True takes the quote page only, one try per symbol: forecast EPS and dividend for the ranking columns,
+        no trading history, so a Yahoo hiccup costs a company its forward P/E for the week, not minutes of retries."""
         from concurrent.futures import ThreadPoolExecutor
         todo = {norm_code(c): syms for c, syms in wanted.items()}
         if not todo:
@@ -248,9 +250,9 @@ class PriceBook:
         def work(item):
             code, syms = item
             yj = YahooJapan(Http(cache_dir=http0.cache_dir, min_interval=http0.min_interval, offline=http0.offline,
-                                 retries=2), ttl=self.yj.ttl, store=store)
+                                 retries=1 if light else 2), ttl=self.yj.ttl, store=store)
             try:
-                return code, yj.quote(code, syms)
+                return code, yj.quote(code, syms[:1] if light else syms, history=not light)
             except Exception:
                 return code, None
 

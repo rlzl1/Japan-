@@ -177,7 +177,7 @@ def value_screen(ctx: Context, reference: Optional[str], crit: dict = CRITERIA, 
         # the company's forecast EPS and dividend (forward P/E, yield) for everyone else: pages parsed, not kept
         rest = {c: ctx.universe.get(c).yahoo_symbols for c in (set(rows) - cand - financial) if ctx.universe.get(c)}
         log_(f"  quote pages (forecast EPS, dividend) for {len(rest)} more companies")
-        ctx.prices.prefetch(rest, store=False)
+        ctx.prices.prefetch(rest, store=False, light=True)
     for code in set(rows):
         r = row_for(code)
         if r is not None:
