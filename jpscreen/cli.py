@@ -222,12 +222,25 @@ def cmd_daily(args, ctx, edinet):
         ctx.value_rows = {r["code"]: r for r in (value.get("rows_all") or [])}
     else:
         ctx.prices.load_bulk(ctx.tdnet.http)     # today's price for every listed stock (tickers added on the page)
+        value = ctx.store.read_json("value.json", {})
+        if value.get("rows_all"):               # the weekly screen at today's prices
+            from .value import reprice
+            n = reprice(value, ctx.prices.quotes)
+            ctx.store.write_json("value.json", value)
+            ctx.value_rows = {r["code"]: r for r in value["rows_all"]}
+            print(f"value screen repriced: {n} companies moved to {value['meta'].get('price_date')} prices")
     args.date_from = args.date_from or max(since + dt.timedelta(days=1), today - dt.timedelta(days=6)).isoformat()
     cmd_radar(args, ctx, edinet)
     for p in collection_files(db, "frontrun"):
         if p.stem == "latest" and not ctx.store.read_json("frontrun.json"):
             d = _json.loads(p.read_text())
             ctx.store.write_json("frontrun.json", d.get("data") or d)
+    for p in collection_files(db, "deals"):      # open deals and their terms, carried between containers
+        if p.stem == "latest" and not ctx.store.read_json("deals.json"):
+            d = _json.loads(p.read_text())
+            d = d.get("data") or d
+            if d.get("memory"):
+                ctx.store.write_json("deals.json", dict(deals=d["memory"], updated=d.get("date")))
     if args.prev_dir is None and db:
         args.prev_dir = str(Path(db) / "portfolio")
     if args.positions_dir is None and db:

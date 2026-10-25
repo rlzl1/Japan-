@@ -16,6 +16,7 @@ from typing import Optional
 
 from .classify import CAT_LABEL, CATALYST_LABEL, Tag, classify
 from .docparse import parse_catalyst
+from .deals import DealBook, bidder_from_title
 from .fundamentals import from_facts
 from .prices import PriceBook
 from .rate import LIMITS, evaluate, fin_line, headline
@@ -26,7 +27,7 @@ from .util import JST, nfkc, norm_code
 
 log = logging.getLogger(__name__)
 
-READ_DOCS = {"tender_offer", "self_tender", "squeeze_out", "rumor", "strategic", "control_change", "holding",
+READ_DOCS = {"tender_offer", "self_tender", "squeeze_out", "rumor", "strategic", "control_change", "major_holder", "holding",
              "proxy_fight", "control_dispute", "merger", "share_swap", "split", "reverse_merger", "liquidation",
              "listing", "buyback", "cancellation", "dividend", "value_up", "guidance", "asset_sale", "contract",
              "capital_return"}
@@ -48,15 +49,6 @@ class Context:
     max_docs: int = 800
     max_kessan: int = 800
 
-
-def bidder_from_title(title: str) -> Optional[str]:
-    t = nfkc(title)
-    t = re.sub(r"^[（(](変更|一部変更|訂正|開示事項の経過)[)）]", "", t).lstrip("「")
-    m = re.search(r"([^「」『』()（）、]{2,60}?)による", t)
-    if not m:
-        return None
-    b = re.sub(r"^(当社(の)?(親会社|筆頭株主|主要株主|その他の関係会社|代表取締役[^で]*)である)", "", m.group(1)).strip()
-    return b[:60] or None
 
 
 class NameIndex:
@@ -106,6 +98,10 @@ def scan(ctx: Context, start: dt.date, end: dt.date, log_=print) -> dict:
     log_(f"{len(items)} TDnet disclosures {start}..{end}")
     harvest_kessan(ctx, items, log_)
     names = NameIndex(ctx.universe)
+    book = DealBook(ctx.store)
+    if not book.deals:          # first run: the last weeks' deals, so follow-up filings carry their terms
+        book.update(ctx, ctx.tdnet.list_range(start - dt.timedelta(days=45), start - dt.timedelta(days=1)), names, log_=log_)
+    book.update(ctx, items, names, log_=log_)
 
     tagged: list[tuple[Disclosure, Tag, str]] = []
     for d in items:
@@ -128,7 +124,7 @@ def scan(ctx: Context, start: dt.date, end: dt.date, log_=print) -> dict:
     tagged.sort(key=lambda x: (x[0].time.date(), x[1].role != "target", x[0].time), reverse=False)
     seen, uniq = set(), []
     for d, tag, subject in tagged:
-        key = (subject, tag.kind, tag.label, d.date if tag.kind in ("holding", "control_change") else None)
+        key = (subject, tag.kind, tag.label, d.date if tag.kind in ("holding", "control_change", "major_holder") else None)
         if tag.signal == "catalyst" and tag.cat in ("sale_process",):
             key = (subject, tag.cat, d.date)
         if key in seen:
@@ -181,11 +177,16 @@ def scan(ctx: Context, start: dt.date, end: dt.date, log_=print) -> dict:
             deal = deals.setdefault((subject, tag.kind), {})
             deal.update({k: v for k, v in cat.items() if v not in (None, "", [], False)})
             cat = dict(deal)
+            for k, v in book.terms_for(subject, tag.kind).items():
+                if cat.get(k) in (None, "", False):
+                    cat[k] = v          # terms from the deal's earlier filings (an amendment repeats none)
             later = last_deal_doc.get((subject, tag.kind))
             if later is not None and later is not d:
                 continue
-        if tag.kind in ("control_change", "holding") and re.search(r"持株会", cat.get("holder") or ""):
+        if tag.kind in ("control_change", "major_holder", "holding") and re.search(r"持株会", cat.get("holder") or ""):
             continue                # employee / supplier share plans crossing 10%: noise
+        if tag.kind == "major_holder" and cat.get("direction") == "down" and subject not in ctx.mine and subject not in ctx.value_tags:
+            continue                # a holder falling below 10%: only on watched names
         # forecast cuts are warnings, not "guidance raised"
         if tag.kind == "guidance" and cat.get("direction") != "up":
             if cat.get("direction") == "down" and (subject in ctx.mine or subject in ctx.value_tags):
@@ -212,12 +213,14 @@ def scan(ctx: Context, start: dt.date, end: dt.date, log_=print) -> dict:
         h["designation"] = designations.get(subject)
         h["asof"] = asof
         evaluate(h, tag, cat, q, f, ctx.value_tags.get(subject, []), ctx.limits, ctx.activists,
-                 extra={"re_index": extra.get("re_index"), "am_mcap": extra.get("am_mcap"),
+                 extra={"re_index": extra.get("re_index"), "am_mcap": extra.get("am_mcap"), "fit": extra.get("fit"),
                         "counter_price": extra.get("counter_price")})
         h.update(group=tag.group, cat=tag.cat, kind_label=CATALYST_LABEL.get(tag.kind, tag.kind),
                  headline=headline(h, tag), fin=fin_line(h, f), end=cat.get("end"), flags=tag.flags,
                  doc_read=cat.get("doc_read", False))
         hits_by_day.setdefault(d.ymd, []).append(h)
+    ctx.store.write_json("deals_latest.json", book.doc(ctx, asof, ctx.activists))
+    book.save(asof)
     ctx.store.save()
     ctx.prices.save()
     now = dt.datetime.now(JST).isoformat(timespec="minutes")

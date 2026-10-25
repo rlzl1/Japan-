@@ -115,6 +115,8 @@ def build(ctx: Context, holdings: list[dict], runs: list[dict], frontrun_rows: l
         if row and (row.re_index is None) and code in ctx.value_rows:
             ref = ctx.value_rows[code]
             row.re_index, row.nca, row.real_estate = ref.get("re_index"), ref.get("nca"), ref.get("real_estate")
+        if row and code in ctx.value_rows:
+            row.fit = ctx.value_rows[code].get("fit")        # the weekly screen's percentile, not recomputed daily
         # ---- snapshot
         snap = _snapshot(q, f, row)
         # ---- feed items: carry over what was seen before
@@ -224,7 +226,8 @@ def _snapshot(q, f, row) -> dict:
     if row:
         s.update(mcap=row.mcap, re_index=row.re_index, nca=row.nca, real_estate=row.real_estate, net_mcap=row.am_mcap,
                  ncav_mcap=row.ncav_mcap, pe=row.pe or (q.per if q else None), pb=row.pb or (q.pbr if q else None),
-                 treasury=row.treasury_pct, top_holder=row.top_holder, top_holder_pct=row.top_holder_pct)
+                 treasury=row.treasury_pct, top_holder=row.top_holder, top_holder_pct=row.top_holder_pct,
+                 pe_fwd=row.pe_fwd, div_yield=row.div_yield, fit=row.fit)
     if f:
         hist = [v for v in (f.net_income_history or []) if v is not None]
         s.update(op=f.op_income, ni=f.net_income, rev=f.revenue, py=sum(1 for v in hist if v > 0), yk=len(hist),

@@ -60,9 +60,12 @@ class ValueRow:
     ncav_mcap: Optional[float] = None
     am: Optional[float] = None               # cash + securities + inv. securities - liabilities
     am_mcap: Optional[float] = None
-    pe: Optional[float] = None
+    pe: Optional[float] = None               # on the last full year's net income
+    pe_fwd: Optional[float] = None           # on the company's forecast EPS (Yahoo quote page)
     pb: Optional[float] = None
+    div_yield: Optional[float] = None        # % forecast dividend on the price
     treasury_pct: Optional[float] = None
+    fit: Optional[float] = None              # 0-100 composite in the user's style (fit_scores)
     profit_years: Optional[int] = None
     years: Optional[int] = None
     ni: Optional[float] = None
@@ -149,6 +152,9 @@ def build_row(c: Company, f: Optional[Fundamentals], q: Optional[Quote], crit: d
     r = ValueRow(code=c.code, name=c.name, market=c.market, sector=c.sector)
     if q:
         r.price, r.price_date, r.adv = q.price, q.price_date, q.adv
+        if q.price and q.eps and q.eps > 0:
+            r.pe_fwd = round(q.price / q.eps, 2)
+        r.div_yield = q.div_yield if q.div_yield is not None else (round(q.dps / q.price * 100, 2) if q.dps and q.price else None)
     r.mcap = market_cap(f, q, crit["market_cap_basis"])
     if f is None:
         return r
@@ -245,3 +251,93 @@ def build_lists(rows: Iterable[ValueRow], crit: dict = CRITERIA, financial_codes
         out[k] = dict(count=len(v), rows=[r.to_dict() for r in v[:crit["list_max"]]])
     out["_tags"] = tags
     return out
+
+
+# ---------------------------------------------------------------- FIT: the user's own style, as one number
+FIT_WEIGHTS = dict(net_cash=0.35, earnings_yield=0.25, treasury=0.10, div_yield=0.10, record=0.10, owner=0.10)
+
+
+def _pct_ranks(vals: dict[str, Optional[float]]) -> dict[str, float]:
+    """0-1 percentile rank of each value among those present (None → 0)."""
+    present = sorted((v, k) for k, v in vals.items() if v is not None)
+    out = {k: 0.0 for k in vals}
+    n = len(present)
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and present[j + 1][0] == present[i][0]:
+            j += 1
+        rank = (i + j) / 2 / max(n - 1, 1)
+        for _, k in present[i:j + 1]:
+            out[k] = rank
+        i = j + 1
+    return out
+
+
+def fit_scores(rows: Iterable[ValueRow], financial_codes: Optional[set] = None, weights: dict = FIT_WEIGHTS) -> int:
+    """Score every row 0-100 on what the owner's holdings have in common: cash + securities above the market cap,
+    a single-digit P/E, buybacks (treasury), a dividend, profits every year, and an owner big enough to take the
+    company private. Each part is a percentile rank among non-financial companies with fundamentals; FIT is the
+    weighted mean, given as a percentile (FIT 95 = better than 95% of companies). Loss-makers score zero on earnings."""
+    financial_codes = financial_codes or set()
+    rows = [r for r in rows if r.code not in financial_codes and r.mcap and r.source]
+    def backing(r):     # the better of cash + securities − liabilities and net current assets, against market cap
+        vals = [x for x in (r.am_mcap, r.ncav_mcap) if x is not None]
+        return max(vals) if vals else None
+    parts = {
+        "net_cash": {r.code: backing(r) for r in rows},
+        "earnings_yield": {r.code: (1 / (r.pe_fwd or r.pe) if (r.pe_fwd or r.pe) else (0.0 if r.ni is not None else None)) for r in rows},
+        "treasury": {r.code: r.treasury_pct for r in rows},
+        "div_yield": {r.code: r.div_yield for r in rows},
+        "record": {r.code: (r.profit_years / r.years if r.years else None) for r in rows},
+        # an owner between a third and two thirds can take the company out; above that there is little left to buy
+        "owner": {r.code: (min(r.top_holder_pct, 66.7) / 66.7 if r.top_holder_pct else None) for r in rows},
+    }
+    ranks = {k: _pct_ranks(v) for k, v in parts.items()}
+    composite = {r.code: sum(weights[k] * ranks[k][r.code] for k in weights) for r in rows}
+    fit = _pct_ranks(composite)             # FIT 95 = better than 95% of the market on the weighted mix
+    for r in rows:
+        r.fit = round(100 * fit[r.code], 1)
+    return len(rows)
+
+
+PRICE_SCALED = ("mcap", "re_index", "pe", "pe_fwd", "pb")      # move with the price
+PRICE_INVERSE = ("ncav_mcap", "am_mcap", "div_yield")           # move against it
+
+
+def reprice(value: dict, quotes: dict) -> int:
+    """Carry a saved value screen to today's prices: every ratio that has the market cap in it is scaled by the
+    price change, so the cheapness table stays current between the weekly screens. quotes: code -> Quote."""
+    n = 0
+    seen: dict[str, tuple] = {}
+
+    def fix(row: dict) -> None:
+        nonlocal n
+        q = quotes.get(row["code"])
+        old = row.get("price")
+        if not q or not q.price or not old or q.price == old or (q.price_date or "") <= (row.get("price_date") or ""):
+            return
+        k = q.price / old
+        for f in PRICE_SCALED:
+            if row.get(f) is not None:
+                row[f] = round(row[f] * k, 4) if abs(row[f]) < 1000 else round(row[f] * k)
+        for f in PRICE_INVERSE:
+            if row.get(f) is not None:
+                row[f] = round(row[f] / k, 4)
+        row["price"], row["price_date"] = q.price, q.price_date
+        if row["code"] not in seen:
+            seen[row["code"]] = (old, q.price)
+            n += 1
+
+    for row in value.get("rows_all") or []:
+        fix(row)
+    for k, lst in (value.get("lists") or {}).items():
+        if isinstance(lst, dict):
+            for row in lst.get("rows") or []:
+                fix(row)
+            if k == "re_netnet":
+                lst["rows"].sort(key=lambda r: r.get("re_index") if r.get("re_index") is not None else 9)
+    dates = [r.get("price_date") for r in (value.get("rows_all") or []) if r.get("price_date")]
+    if dates and value.get("meta") is not None:
+        value["meta"]["price_date"] = max(dates)
+    return n

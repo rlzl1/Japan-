@@ -82,6 +82,8 @@ def parse_quote_page(code: str, sym: str, html: str) -> Optional[Quote]:
     q.pbr, q.per = _num(f.get("pbr")), _num(f.get("per"))
     q.eps, q.bps = _num(f.get("eps")), _num(f.get("bps"))
     q.div_yield, q.dps = _num(f.get("dividendYield")), _num(f.get("dps"))
+    if q.div_yield is None and q.dps and q.price:
+        q.div_yield = round(q.dps / q.price * 100, 2)      # company-forecast dividend on the last price
     q.year_high, q.year_low = _num(f.get("yearHighPrice")), _num(f.get("yearLowPrice"))
     m = re.search(r'"pressReleaseDate":"([^"]+)"', s)
     q.next_results = m.group(1) if m else None
@@ -113,15 +115,16 @@ def parse_history_page(html: str, adjusted: bool = False) -> list[tuple[str, flo
 
 
 class YahooJapan:
-    def __init__(self, http: Http, ttl: float = 6 * 3600):
+    def __init__(self, http: Http, ttl: float = 6 * 3600, store: bool = True):
         self.http = http
         self.ttl = ttl
+        self.store = store          # False: parse the page and keep nothing on disk (whole-market passes)
 
     def quote(self, code: str, symbols: Optional[Iterable[str]] = None, history: bool = True) -> Optional[Quote]:
         code = norm_code(code)
         for sym in (symbols or [f"{code}.T", f"{code}.N", f"{code}.F", f"{code}.S"]):
             try:
-                html = self.http.get_text(YJ_QUOTE.format(sym=sym), ttl=self.ttl, allow_404=True)
+                html = self.http.get_text(YJ_QUOTE.format(sym=sym), ttl=self.ttl, allow_404=True, store=self.store)
             except HttpError as e:
                 # Yahoo's quote page fails intermittently (HTTP 500) while the history page still answers:
                 # price, date and liquidity then come from the history; shares and valuation from the bulk ranking
@@ -148,7 +151,7 @@ class YahooJapan:
 
     def _add_history(self, q: Quote, sym: str) -> None:
         try:
-            h = self.http.get_text(YJ_HISTORY.format(sym=sym), ttl=self.ttl, allow_404=True)
+            h = self.http.get_text(YJ_HISTORY.format(sym=sym), ttl=self.ttl, allow_404=True, store=self.store)
             rows = parse_history_page(h or "")
         except HttpError:
             rows = []
@@ -233,8 +236,9 @@ class PriceBook:
                 q.year_low = min(q.year_low or q.price, q.price)
         self.quotes[code] = q
 
-    def prefetch(self, wanted: dict[str, list[str]], workers: int = 4) -> None:
-        """Fetch many quotes in parallel (each worker has its own session; responses share the disk cache)."""
+    def prefetch(self, wanted: dict[str, list[str]], workers: int = 4, store: bool = True) -> None:
+        """Fetch many quotes in parallel (each worker has its own session; responses share the disk cache unless
+        store=False, for whole-market passes that would otherwise leave thousands of pages on disk)."""
         from concurrent.futures import ThreadPoolExecutor
         todo = {norm_code(c): syms for c, syms in wanted.items()}
         if not todo:
@@ -244,7 +248,7 @@ class PriceBook:
         def work(item):
             code, syms = item
             yj = YahooJapan(Http(cache_dir=http0.cache_dir, min_interval=http0.min_interval, offline=http0.offline,
-                                 retries=2), ttl=self.yj.ttl)
+                                 retries=2), ttl=self.yj.ttl, store=store)
             try:
                 return code, yj.quote(code, syms)
             except Exception:

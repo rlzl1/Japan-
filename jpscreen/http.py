@@ -117,6 +117,6 @@ class Http:
         return json.loads(data.decode("utf-8")) if data is not None else None
 
     def get_text(self, url: str, params: Optional[dict] = None, ttl: Optional[float] = None,
-                 encoding: str = "utf-8", allow_404: bool = False) -> Optional[str]:
-        data = self.get(url, params=params, ttl=ttl, allow_404=allow_404)
+                 encoding: str = "utf-8", allow_404: bool = False, store: bool = True) -> Optional[str]:
+        data = self.get(url, params=params, ttl=ttl, allow_404=allow_404, store=store)
         return data.decode(encoding, errors="replace") if data is not None else None

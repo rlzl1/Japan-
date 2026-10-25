@@ -39,6 +39,25 @@ in English or Japanese, in the command line to open the security panel; `1`–`7
 the portfolio. Add a holding on the PORT tab (code, held/watching, shares, average cost): it shows at once with
 its last price and is researched by the next refresh (or press REFRESH).
 
+## Rankings and FIT (CHEAP)
+
+The CHEAP tab ranks by any column: the RE net-net index, P/E on the last full year, forward P/E on the company's
+own forecast EPS (what Yahoo and Kabutan show), net cash (cash + securities + investment securities − all
+liabilities) over market cap, dividend yield, treasury stock, and FIT. "All screened" lists every company with
+fundamentals (`screen/p0..p5` documents). FIT is a percentile of a weighted mix of what the holdings have in
+common: asset backing 35%, earnings yield 25%, treasury 10%, dividend 10%, profits every year 10%, an owner
+between a third and two thirds 10%; it also counts as a value test in the stars for profitable companies.
+Market caps exclude treasury shares. Between weekly screens the daily run re-prices every ratio to the last close.
+
+## Deals (DEALS)
+
+`jpscreen/deals.py` keeps every tender offer, self-tender and squeeze-out seen on TDnet in `state/deals.json`
+(mirrored in the `deals/latest` document), folding each later filing on the same deal into one record: the
+opening announcement, the board's opinion, changes of terms, extensions, progress notes, the result. The page
+shows the bid, the live spread, the premium to the close before the first filing, the bid's P/B and net-cash
+cover, and bump signals. The radar reads a follow-up filing's terms from this memory when the document itself
+repeats none. The first run backfills 45 days.
+
 ## RE net-net index (CHEAP)
 
 ```

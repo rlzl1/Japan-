@@ -72,6 +72,11 @@ def value_points(v: dict) -> tuple[float, Optional[str]]:
             tests.append((1.5, f"FCF yield {f3*100:.0f}% (3-yr avg), P/E {pe:.1f}", "earn"))
     if pb is not None and pb <= 0.5 and earning and yk and py == yk:
         tests.append((1.0, f"P/B {pb:.2f}, profitable every year", "book"))
+    fit = v.get("fit")
+    if fit is not None and earning:
+        pts = 2.0 if fit >= 95 else 1.5 if fit >= 90 else 1.0 if fit >= 80 else 0
+        if pts:
+            tests.append((pts, f"FIT {fit:.0f}: top {100 - int(fit)}% on net cash, earnings yield, payout and ownership", "fit"))
     if not tests:
         return 0.0, None
     pts, why, kind = max(tests, key=lambda t: t[0])
@@ -83,6 +88,11 @@ def value_points(v: dict) -> tuple[float, Optional[str]]:
             pts -= 0.5
             why += f"; liabilities {de:.1f}× equity"
     return max(pts, 0.0), why
+
+
+def _corporate(name: str) -> bool:
+    return bool(name) and any(x in name for x in ("株式会社", "(株)", "㈱", "有限会社", "合同会社", "Co.", "Ltd", "Inc",
+                                                   "LIMITED", "CORPORATION", "ホールディングス", "Holdings"))
 
 
 def edge_points(h: dict, kind: str, cid: str, cat: dict, flags: dict) -> tuple[float, list[str]]:
@@ -190,12 +200,20 @@ def edge_points(h: dict, kind: str, cid: str, cat: dict, flags: dict) -> tuple[f
             why.append("the company is selling a business, not being bought")
         e = min(e, 2.0)
     elif cid == "control":
+        holder = cat.get("holder") or ""
         if cat.get("direction") == "down" or flags.get("selling"):
             why.append("a large holder sold down: overhang, sometimes a block looking for a buyer")
+        elif kind == "control_change":
+            e = 1.0
+            why.append("a new parent or controlling shareholder: buy-outs of the remaining minority often follow")
         elif cat.get("activist"):
-            e = 0.5
+            e = 1.0
             why.append("a known activist crossed 10%")
+        elif _corporate(holder):
+            e = 0.5
+            why.append("a company crossed 10%: a strategic holder, sometimes the eventual buyer")
         else:
+            e = 0.25
             why.append("a holder crossed 10%: who it is matters")
     elif cid == "activist":
         e = 0.5
@@ -334,7 +352,7 @@ def risk_points(adv: Optional[float], designation: Optional[str], warnings: list
 
 
 def value_inputs(h: dict) -> dict:
-    return dict(net_mcap=h.get("asset_margin_vs_mcap"), ncav_mcap=h.get("ncav_vs_mcap"), re_index=h.get("re_index"),
+    return dict(net_mcap=h.get("asset_margin_vs_mcap"), ncav_mcap=h.get("ncav_vs_mcap"), re_index=h.get("re_index"), fit=h.get("fit"),
                 pe=h.get("pe"), fcf3_yield=h.get("fcf3_yield"), pb=h.get("pb"), de=h.get("debt_equity"),
                 op=h.get("op_income"), ni=h.get("net_income"), py=h.get("profitable_years"), yk=h.get("years_known"))
 
@@ -380,7 +398,7 @@ def holding_rating(snap: dict, events: list[dict], standing: list[tuple[float, s
                    designation: Optional[str] = None) -> tuple[int, dict]:
     """Stars for a holding on the radar's system: edge from its own radar events (last 120 days, half weight after 60)
     or its standing catalysts, value from its snapshot, risk from trading and recent warnings."""
-    v, v_why = value_points(dict(net_mcap=snap.get("net_mcap"), ncav_mcap=snap.get("ncav_mcap"), re_index=snap.get("re_index"),
+    v, v_why = value_points(dict(net_mcap=snap.get("net_mcap"), ncav_mcap=snap.get("ncav_mcap"), re_index=snap.get("re_index"), fit=snap.get("fit"),
                                  pe=snap.get("pe"), fcf3_yield=snap.get("fcf3_yield"), pb=snap.get("pb"), de=snap.get("de"),
                                  op=snap.get("op"), ni=snap.get("ni"), py=snap.get("py"), yk=snap.get("yk")))
     e, e_why, src = 0.0, [], None

@@ -12,7 +12,7 @@ from .frontrun import history_signals, score
 from .fundamentals import from_facts
 from .radar import Context
 from .util import JST, norm_code, today_jst
-from .value import CRITERIA, ValueRow, build_lists, build_row, load_reference, reference_row
+from .value import CRITERIA, ValueRow, build_lists, build_row, load_reference, reference_row, fit_scores
 
 log = logging.getLogger(__name__)
 
@@ -173,11 +173,18 @@ def value_screen(ctx: Context, reference: Optional[str], crit: dict = CRITERIA, 
     cand = (near | must) - financial
     log_(f"  full quotes (with trading history) for {len(cand)} candidates")
     ctx.prices.prefetch({c: ctx.universe.get(c).yahoo_symbols for c in cand if ctx.universe.get(c)})
-    for code in cand:
+    if price_all:
+        # the company's forecast EPS and dividend (forward P/E, yield) for everyone else: pages parsed, not kept
+        rest = {c: ctx.universe.get(c).yahoo_symbols for c in (set(rows) - cand - financial) if ctx.universe.get(c)}
+        log_(f"  quote pages (forecast EPS, dividend) for {len(rest)} more companies")
+        ctx.prices.prefetch(rest, store=False)
+    for code in set(rows):
         r = row_for(code)
         if r is not None:
             rows[code] = r
     ctx.prices.save()
+    n_fit = fit_scores(rows.values(), financial)
+    log_(f"  FIT scored for {n_fit} companies")
     lists = build_lists(rows.values(), crit, financial)
     meta = dict(date=dt.datetime.now(JST).date().isoformat(), price_date=ctx.prices.asof, universe=len(ctx.universe),
                 screened=len(rows), with_fundamentals=len(stored), reference=Path(reference).name if reference else None,

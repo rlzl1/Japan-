@@ -57,7 +57,7 @@ GROUPS = [("special", "Special situations"), ("returns", "Shareholder returns"),
 KIND_TO_CAT = {
     "tender_offer": "tender", "self_tender": "tender", "squeeze_out": "tender",
     "strategic": "sale_process", "rumor": "sale_process",
-    "control_change": "control",
+    "control_change": "control", "major_holder": "control",
     "merger": "mna", "share_swap": "mna",
     "split": "spinoff",
     "holding": "activist",
@@ -76,7 +76,7 @@ SPECIAL_SITUATIONS = {k for k, c in KIND_TO_CAT.items() if CAT_GROUP[c] == "spec
 CATALYST_LABEL = {
     "tender_offer": "Tender offer", "self_tender": "Self-tender", "squeeze_out": "Squeeze-out",
     "strategic": "Sale / strategic review", "rumor": "Answer to press report",
-    "control_change": "New controlling shareholder", "merger": "Merger / integration",
+    "control_change": "New controlling shareholder", "major_holder": "10% holder change", "merger": "Merger / integration",
     "share_swap": "Share exchange", "split": "Demerger / spin-off", "holding": "New 5% holder",
     "proxy_fight": "Shareholder proposal", "control_dispute": "Control lawsuit", "liquidation": "Liquidation",
     "capital_return": "Cash capital return", "reverse_merger": "Reverse merger", "listing": "Listing criteria",
@@ -210,9 +210,11 @@ def classify_catalyst(n: str, raw: str, code: str) -> Optional[Tag]:
         return Tag("liquidation", "catalyst")
 
     # -------- control changes
-    if re.search(r"親会社(及び|並びに|の)?.*異動|主要株主である筆頭株主の異動|筆頭株主の異動|その他の関係会社の異動|"
-                 r"支配株主の異動|主要株主の異動", n) and "子会社の異動" not in n:
+    if re.search(r"親会社(及び|並びに|の)?.*異動|その他の関係会社の異動|支配株主の異動", n) and "子会社の異動" not in n:
         return Tag("control_change", "catalyst")
+    # a holder crossing 10% (主要株主) is not a change of control: its own kind, read for who and which way
+    if re.search(r"主要株主である筆頭株主の異動|筆頭株主の異動|主要株主の異動", n) and "子会社の異動" not in n:
+        return Tag("major_holder", "catalyst")
 
     # -------- mergers / share exchanges / demergers
     if "株式交換" in n:

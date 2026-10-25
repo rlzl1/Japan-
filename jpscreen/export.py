@@ -10,6 +10,7 @@ Dashboard collections (mirroring the Korea Filing Radar):
 from __future__ import annotations
 
 import json
+import zlib
 from pathlib import Path
 
 from .classify import CAT_LABEL
@@ -35,6 +36,12 @@ def db_docs(store: Store) -> dict[str, dict]:
     fr = store.read_json("frontrun.json")
     if fr:
         docs["frontrun/latest"] = dict(fr, rows=fr["rows"][:250])   # keeps a restored copy identical
+    dl = store.read_json("deals_latest.json")
+    if dl:
+        docs["deals/latest"] = dl
+    if value.get("rows_all"):
+        for k, v in screen_parts(value["rows_all"]).items():
+            docs[f"screen/{k}"] = v
     cov = store.read_json("coverage.json")
     if cov:
         docs["mine/latest"] = cov
@@ -55,6 +62,24 @@ def db_docs(store: Store) -> dict[str, dict]:
         for k, v in store_chunks(store).items():
             docs[f"cache/{k}"] = v
     return docs
+
+
+SCREEN_FIELDS = ("code", "name", "market", "sector", "price", "price_date", "mcap", "re_index", "ncav_mcap", "am_mcap", "pe",
+                 "pe_fwd", "pb", "div_yield", "treasury_pct", "profit_years", "years", "top_holder_pct", "adv", "fit", "lists")
+SCREEN_PARTS = 6
+
+
+def screen_parts(rows: list[dict]) -> dict[str, dict]:
+    """Every screened company, slimmed to the ranking columns, in fixed documents (a hash of the code picks the part)."""
+    parts = {f"p{i}": dict(count=0, rows=[]) for i in range(SCREEN_PARTS)}
+    for r in rows:
+        if not r.get("mcap") or not r.get("source"):
+            continue
+        slim = {k: r[k] for k in SCREEN_FIELDS if r.get(k) not in (None, "", [])}
+        part = parts[f"p{zlib.crc32(r['code'].encode()) % SCREEN_PARTS}"]
+        part["rows"].append(slim)
+        part["count"] += 1
+    return parts
 
 
 MAX_DOC = 250_000  # the dashboard database caps a document at 256 KiB

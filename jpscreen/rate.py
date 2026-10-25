@@ -102,6 +102,8 @@ def evaluate(h: dict, tag: Tag, cat: dict, q: Optional[Quote], f: Optional[Funda
         h["re_index"] = extra["re_index"]
     if extra.get("am_mcap") is not None and h.get("asset_margin_vs_mcap") is None:
         h["asset_margin_vs_mcap"] = extra["am_mcap"]
+    if extra.get("fit") is not None:
+        h["fit"] = extra["fit"]
     if q and q.pbr:
         h["pb"] = q.pbr
     if f and mcap and f.fcf_history:
@@ -168,10 +170,12 @@ def evaluate(h: dict, tag: Tag, cat: dict, q: Optional[Quote], f: Optional[Funda
             bits.append("spin-off: shareholders receive the new shares")
         elif cat.get("physical_split") or tag.flags.get("physical_split"):
             bits.append("business moved into a subsidiary (holding-company structure)")
-    elif k in ("control_change", "holding"):
+    elif k in ("control_change", "major_holder", "holding"):
         if cat.get("holder"):
             bits.append(cat["holder"])
         pb_, pa_ = cat.get("pct_before"), cat.get("pct_after")
+        if k == "major_holder" and cat.get("direction"):
+            bits.append("crossed 10%" if cat["direction"] == "up" else "fell below 10%")
         if pb_ and pa_ and not tag.flags.get("creeping"):
             bits.append(f"{pb_:.1f}% → {pa_:.1f}%")
         elif pa_ and not tag.flags.get("creeping"):
