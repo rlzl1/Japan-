@@ -14,6 +14,8 @@ from typing import Iterable, Optional
 from .classify import SELF, codes_in
 from .docparse import parse_tender, tight, to_num
 from .frontrun import match_activist
+from .prices import YJ_HISTORY, parse_history_page
+from .tdnet import Disclosure
 from .util import nfkc, norm_code
 
 TOB = re.compile(r"公開買付")
@@ -41,6 +43,31 @@ def bidder_from_title(title: str) -> Optional[str]:
         return None
     b = re.sub(r"^(当社(の)?(親会社|筆頭株主|主要株主|その他の関係会社|代表取締役[^で]*)である)", "", m.group(1)).strip()
     return b[:60] or None
+
+
+def kabutan_pdf(d) -> Optional[str]:
+    """Kabutan keeps every TDnet PDF; TDnet itself deletes them after about a month."""
+    m = re.search(r"/(\d{18})\.pdf", d.pdf_url or "")
+    return f"https://tdnet-pdf.kabutan.jp/{d.ymd}/{m.group(1)}.pdf" if m else None
+
+
+def doc_text(ctx, d) -> Optional[str]:
+    text = ctx.tdnet.pdf_text(d)
+    if not text and kabutan_pdf(d):
+        text = ctx.tdnet.pdf_text(Disclosure(**{**d.__dict__, "pdf_url": kabutan_pdf(d)}))
+    return text
+
+
+def close_before(http, symbol: str, day: str) -> Optional[tuple[str, float]]:
+    """The last close strictly before `day` (the undisturbed price of a deal announced that day)."""
+    d0 = dt.date.fromisoformat(day)
+    try:
+        html = http.get_text(YJ_HISTORY.format(sym=symbol), params={"from": (d0 - dt.timedelta(days=21)).strftime("%Y%m%d"),
+                             "to": (d0 - dt.timedelta(days=1)).strftime("%Y%m%d"), "timeFrame": "d"}, ttl=None, allow_404=True)
+    except Exception:
+        return None
+    rows = parse_history_page(html or "")
+    return (rows[0][0], rows[0][1]) if rows else None
 
 
 def parse_result(text: str) -> dict:
@@ -110,10 +137,11 @@ class DealBook:
                 continue
             kind = "self_tender" if SELF.search(t) else "squeeze_out" if (SQUEEZE.search(t) and not TOB.search(t)) else "tender_offer"
             code = norm_code(d.code)
-            if kind != "tender_offer" or OWN.search(t):
-                target = code
+            coded = codes_in(t)
+            if kind != "tender_offer" or OWN.search(t) or code in coded:
+                target = code       # the target posts the bidder's announcement under its own code
             else:
-                other = [c for c in codes_in(t) if c != code]
+                other = [c for c in coded if c != code]
                 target = other[0] if other else names.find(t, exclude=code)
                 if not target:
                     continue        # a bid for an unlisted company
@@ -134,8 +162,8 @@ class DealBook:
                                                          status=None))
             need = deal.get("price") is None or deal.get("end") is None or hint in ("changed", "closed")
             cat = ctx.store.parsed(d.id)
-            if cat is None and need and reads < max_reads:
-                text = ctx.tdnet.pdf_text(d)
+            if (cat is None or (need and not cat.get("doc_read"))) and reads < max_reads:
+                text = doc_text(ctx, d)
                 reads += 1
                 cat = parse_tender(text or "") if text else {}
                 if hint == "closed" and text:
@@ -151,6 +179,18 @@ class DealBook:
 
     def _merge(self, deal: dict, cat: dict, d, title: str, hint: str, target: str) -> None:
         day = d.date.isoformat()
+        cat = dict(cat)
+        # a period must sit around the filing date; anything else is some other date range in the document
+        for k, lo, hi in (("start", -120, 120), ("end", -60, 150)):
+            if cat.get(k):
+                try:
+                    off = (dt.date.fromisoformat(cat[k]) - d.date).days
+                except ValueError:
+                    off = None
+                if off is None or not (lo <= off <= hi):
+                    cat[k] = None
+        if cat.get("start") and cat.get("end") and cat["end"] < cat["start"]:
+            cat["start"] = cat["end"] = None
         price = cat.get("price")
         if price:
             if deal.get("price") and price > deal["price"]:
@@ -211,14 +251,16 @@ class DealBook:
             if deal.get("status") not in ("closed", "withdrawn") and deal.get("end"):
                 if (t0 - dt.date.fromisoformat(deal["end"])).days > 5:
                     deal["status"] = "ended"       # the period has passed and no result filing was seen
-            if deal.get("ref_price") is None and q:
-                before = [r for r in (q.history or []) if r[0] < deal["first_date"]]
+            if deal.get("ref_price") is None and deal.get("status") in ("open", "announced", None):
+                before = [r for r in ((q.history if q else None) or []) if r[0] < deal["first_date"]]
                 if before:
                     deal["ref_price"], deal["ref_date"] = before[0][1], before[0][0]
                 else:
-                    vr = (ctx.value_rows or {}).get(code) or {}
-                    if vr.get("price") and (vr.get("price_date") or "") < deal["first_date"]:
-                        deal["ref_price"], deal["ref_date"] = vr["price"], vr["price_date"]
+                    comp = ctx.universe.get(code)
+                    sym = (comp.yahoo_symbols if comp else [code + ".T"])[0]
+                    got = close_before(ctx.tdnet.http, sym, deal["first_date"])
+                    if got:
+                        deal["ref_date"], deal["ref_price"] = got
             live = dict(deal)
             live.pop("docs", None)
             price = deal.get("price")

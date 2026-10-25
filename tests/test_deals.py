@@ -64,6 +64,7 @@ class Names:
 
 
 ANNOUNCE = ("公開買付者株式会社カチタス 買付け等の価格 普通株式1株につき、金2,000円 買付け等の期間 2026年10月14日から2026年12月3日まで "
+            "借入期間 2022年3月24日から2030年3月23日 "
             "買付予定数の上限 ― 買付予定数の下限 1,000,000株 公開買付けの目的 完全子会社化 当社取締役会は賛同の意見を表明し応募を推奨")
 RESULT_TXT = "応募株券等の総数 2,345,600株 買付予定数の下限以上 買付け等を行います 所有割合 93.2%"
 
@@ -109,6 +110,13 @@ def test_deal_life_cycle_carries_terms_to_follow_ups():
     n = book.update(ctx, [D("b1", "4626", "株式会社Zによる株式会社Q(証券コード:9999)の株券等に対する公開買付けの開始に関するお知らせ", dt.date(2026, 10, 1)),
                           D("b2", "4626", "持分法適用会社株式に対する公開買付けに係る応募契約の締結に関するお知らせ", dt.date(2026, 10, 1))], Names())
     assert n == 0
+    # the target posts the bidder's own announcement (its code in the title): it is the target, not a name match
+    ctx.universe["7133"] = Comp("HYUGA PRIMARY CARE")
+    class N2(Names):
+        def find(self, title, exclude=""):
+            return "5857"       # a careless name index would match "ARE" inside "PRIMARY CARE"
+    book.update(ctx, [D("c1", "7133", "株式会社JG44によるHYUGA PRIMARY CARE株式会社(証券コード:7133)の株券等に対する公開買付けの開始に関するお知らせ", dt.date(2026, 9, 25))], N2())
+    assert book.latest("7133", "tender_offer") and not book.latest("5857", "tender_offer")
     book.save("2026-12-05")
     assert "deals" in ctx.store.files["deals.json"]
 

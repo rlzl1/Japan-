@@ -97,7 +97,8 @@ def parse_tender(text: str) -> dict:
     t = tight(text)
     out: dict = {}
     m = re.search(r"普通株式(?:1株)?(?:につき|当たり)[、,]?金?([\d,]+(?:\.\d+)?)円", t) or \
-        re.search(r"(?:公開買付価格|買付け等の価格|買付価格)(?:は|:)?[^0-9]{0,30}?([\d,]{2,}(?:\.\d+)?)円", t)
+        re.search(r"(?:公開買付価格|買付け等の価格|買付価格)(?:は|:)?[^0-9]{0,30}?([\d,]{2,}(?:\.\d+)?)円", t) or \
+        re.search(r"1株(?:当たり|につき)[^0-9]{0,30}?([\d,]{3,}(?:\.\d+)?)円", t)     # squeeze-outs: the cash per share
     out["price"] = to_num(m.group(1)) if m else None
     # price after a bump: '…を1株につき金X円から金Y円に変更'
     bumps = [(to_num(a), to_num(b)) for a, b in
@@ -107,6 +108,8 @@ def parse_tender(text: str) -> dict:
         out["old_price"], out["price"] = max(bumps, key=lambda x: x[1])
         out["bumps"] = len(set(bumps))
     i = t.find("買付け等の期間")
+    if i < 0:
+        i = t.find("公開買付期間")
     out["start"], out["end"] = _period(t[max(0, i - 150):i + 200] if i >= 0 else t)
     if out["start"] is None:
         out["start"], out["end"] = _period(t)

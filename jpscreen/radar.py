@@ -100,7 +100,8 @@ def scan(ctx: Context, start: dt.date, end: dt.date, log_=print) -> dict:
     names = NameIndex(ctx.universe)
     book = DealBook(ctx.store)
     if not book.deals:          # first run: the last weeks' deals, so follow-up filings carry their terms
-        book.update(ctx, ctx.tdnet.list_range(start - dt.timedelta(days=45), start - dt.timedelta(days=1)), names, log_=log_)
+        book.update(ctx, ctx.tdnet.list_range(start - dt.timedelta(days=45), start - dt.timedelta(days=1)), names,
+                    max_reads=150, log_=log_)
     book.update(ctx, items, names, log_=log_)
 
     tagged: list[tuple[Disclosure, Tag, str]] = []
