@@ -204,16 +204,20 @@ class DealBook:
                 deal["extensions"] = (deal.get("extensions") or 0) + 1
             if not deal.get("end") or end > deal["end"] or hint in ("changed", "open"):
                 deal["end"] = end
+        if deal["kind"] == "squeeze_out":       # the company itself proposes it: no bid limits, no board opinion to read
+            for k in ("partial", "upper_limit", "lower_limit", "pct_of_shares", "board_view"):
+                cat[k] = None
         for k in ("start", "partial", "upper_limit", "lower_limit", "pct_of_shares", "delisting", "mbo", "premium_stated"):
             if cat.get(k) not in (None, "", False) and deal.get(k) in (None, "", False):
                 deal[k] = cat[k]
         if cat.get("board_view") and (norm_code(d.code) == target or not deal.get("board_view")):
             deal["board_view"] = cat["board_view"]
+        if not deal.get("bidder") and deal["kind"] != "self_tender":
+            deal["bidder"] = bidder_from_title(title)       # the title names the bidder cleanly
         b = cat.get("bidder")
-        if b and len(b) <= 40 and re.search(r"株式会社|合同会社|LLC|L\.P\.|Limited|Ltd|Inc", b) and not deal.get("bidder"):
+        if b and not deal.get("bidder") and len(b) <= 40 and re.search(r"株式会社|合同会社|LLC|L\.P\.|Limited|Ltd|Inc", b) \
+                and not re.search(r"代表|会社名|氏名|所在地", b):
             deal["bidder"] = b
-        if not deal.get("bidder"):
-            deal["bidder"] = bidder_from_title(title) if deal["kind"] != "self_tender" else deal["name"]
         if deal["kind"] == "self_tender":
             deal["bidder"] = deal["name"]
         if re.search(r"親会社|支配株主", title) or re.search(r"親会社", cat.get("purpose") or ""):

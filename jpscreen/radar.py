@@ -178,7 +178,10 @@ def scan(ctx: Context, start: dt.date, end: dt.date, log_=print) -> dict:
             deal = deals.setdefault((subject, tag.kind), {})
             deal.update({k: v for k, v in cat.items() if v not in (None, "", [], False)})
             cat = dict(deal)
-            for k, v in book.terms_for(subject, tag.kind).items():
+            mem = book.terms_for(subject, tag.kind)
+            if cat.get("price"):        # this filing states its own price: a later raise is the deal's, not this filing's
+                mem.pop("old_price", None), mem.pop("bumps", None)
+            for k, v in mem.items():
                 if cat.get(k) in (None, "", False):
                     cat[k] = v          # terms from the deal's earlier filings (an amendment repeats none)
             later = last_deal_doc.get((subject, tag.kind))

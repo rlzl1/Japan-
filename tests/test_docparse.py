@@ -71,3 +71,19 @@ def test_guidance_first_forecast_full_year_vs_last_year():
     assert r["first_forecast"] and r["direction"] == "up"
     assert r["op_new"] == 1060 and r["op_prev"] == 915 and round(r["op_chg"]) == 16
     assert r["ord_new"] == 1240 and r["ord_prev"] == 1077
+
+
+def test_tender_price_is_the_terms_table_not_an_earlier_proposal():
+    from jpscreen.docparse import parse_tender
+    target_doc = ("ヒルハウスは、2026年9月15日、本公開買付価格を1,629円(提案実施日の前営業日である同月14日の終値921円に対して76.87%のプレミアム)"
+                  "とする提案を行いました。買付け等の期間 2026年10月23日(金曜日)から2026年12月7日(月曜日)まで(30営業日)"
+                  "(1)普通株式 当社株式1株につき、金2,020円(本公開買付けにおける当社株式1株当たりの買付け等の価格を、以下「本公開買付価格」といいます。)"
+                  "買付予定数の上限 ―(株) 買付予定数の下限 2,970,800(株) 当社取締役会は賛同の意見を表明し、応募を推奨")
+    r = parse_tender(target_doc)
+    assert r["price"] == 2020 and r["lower_limit"] == 2970800 and r["upper_limit"] is None and r["partial"] is False
+    assert r["start"] == "2026-10-23" and r["end"] == "2026-12-07" and r["board_view"] == "support"
+    bidder_doc = ("(4)買付け等の価格 1 普通株式1株につき、金2,020円 2 新株予約権 イ 第1回新株予約権1個につき、金1円 "
+                  "(5)買付予定の株券等の数 株券等の種類 買付予定数 買付予定数の下限 買付予定数の上限 普通株式 4,456,145(株) 2,970,800(株) ―(株) "
+                  "(注2)本公開買付けにおいては買付予定数の上限を設定しておりませんので、応募株券等の全部の買付け等を行います。")
+    r = parse_tender(bidder_doc)
+    assert r["price"] == 2020 and r["partial"] is False and r["upper_limit"] is None

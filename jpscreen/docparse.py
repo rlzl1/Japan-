@@ -96,7 +96,10 @@ def _period(t: str) -> tuple[Optional[str], Optional[str]]:
 def parse_tender(text: str) -> dict:
     t = tight(text)
     out: dict = {}
-    m = re.search(r"普通株式(?:1株)?(?:につき|当たり)[、,]?金?([\d,]+(?:\.\d+)?)円", t) or \
+    # the terms table first ("普通株式 当社株式1株につき、金2,020円"); the loose form last, because an opinion statement
+    # also recounts earlier proposals ("本公開買付価格を1,629円とする提案")
+    m = re.search(r"普通株式[^0-9円。]{0,16}?1株(?:につき|当たり)[、,]?金?([\d,]+(?:\.\d+)?)円", t) or \
+        re.search(r"買付け等の価格[^0-9円]{0,40}?1株(?:につき|当たり)[、,]?金?([\d,]+(?:\.\d+)?)円", t) or \
         re.search(r"(?:公開買付価格|買付け等の価格|買付価格)(?:は|:)?[^0-9]{0,30}?([\d,]{2,}(?:\.\d+)?)円", t) or \
         re.search(r"1株(?:当たり|につき)[^0-9]{0,30}?([\d,]{3,}(?:\.\d+)?)円", t)     # squeeze-outs: the cash per share
     out["price"] = to_num(m.group(1)) if m else None
@@ -117,6 +120,8 @@ def parse_tender(text: str) -> dict:
     if m:
         out["upper_limit"] = None if m.group(1) in "―-ー" else to_num(m.group(1))
         out["partial"] = out["upper_limit"] is not None
+    if re.search(r"上限(?:は|を)設定して(?:おりません|いません|おらず|いない)|上限を設け(?:ておりません|ていません|ず)", t):
+        out["upper_limit"], out["partial"] = None, False      # a table read "買付予定数 | 下限 | 上限" column-wise is not a cap
     m = re.search(r"買付予定数の下限[^0-9―\-ー]{0,20}([―\-ー]|[\d,]+)", t)
     if m:
         out["lower_limit"] = None if m.group(1) in "―-ー" else to_num(m.group(1))
