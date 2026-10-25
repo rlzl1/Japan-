@@ -40,3 +40,18 @@ def test_quote_page_dividend_yield_from_dps():
             '"sharesIssued":{"name":"発行済株式数","value":"2,000,000"},"totalPrice":{"name":"時価総額","value":"7,800"}}')
     q = parse_quote_page("4624", "4624.T", html)
     assert q.price == 3900 and q.dps == 50 and q.div_yield == 1.28 and q.eps == 456.59
+
+
+def test_light_quote_takes_the_books_date_and_is_not_refetched():
+    from jpscreen.prices import PriceBook
+    from jpscreen.http import Http
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        book = PriceBook(Http(cache_dir=d + "/http", offline=True), path=d + "/p.json")
+        book._put("1001", Quote(code="1001", price=100.0, price_date="2026-10-23", shares_issued=1e6))
+        light = Quote(code="4624", price=3900.0, shares_issued=2e6, bps=9639.5, eps=456.6)
+        book._put("4624", light)
+        assert book.quotes["4624"].price_date == "2026-10-23"
+        # a second light pass skips it (nothing to fetch, so offline mode raises nothing)
+        book.prefetch({"4624": ["4624.T"]}, store=False, light=True)
+        assert book.quotes["4624"].eps == 456.6

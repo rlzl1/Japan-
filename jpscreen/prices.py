@@ -222,6 +222,8 @@ class PriceBook:
         """Store a fresh quote; what the quote page did not give (it failed, or the history page answered alone) is
         filled from the previous quote: names and share counts as they were, per-share ratios re-priced."""
         old = self.quotes.get(code)
+        if q.price_date is None and q.price and not q.history:
+            q.price_date = self.asof          # a quote page alone carries no date: the last close every other quote has
         if old is not None and q.shares_issued is None:
             for k in ("name", "shares_issued", "market_label", "eps", "bps", "dps", "year_high", "year_low", "next_results"):
                 if getattr(q, k) in (None, "") and getattr(old, k) not in (None, ""):
@@ -243,6 +245,10 @@ class PriceBook:
         no trading history, so a Yahoo hiccup costs a company its forward P/E for the week, not minutes of retries."""
         from concurrent.futures import ThreadPoolExecutor
         todo = {norm_code(c): syms for c, syms in wanted.items()}
+        if light:       # pages already parsed for the current close need no second visit
+            asof = self.asof
+            todo = {c: s for c, s in todo.items() if not (self.quotes.get(c) and self.quotes[c].bps is not None
+                                                          and self.quotes[c].price_date == asof)}
         if not todo:
             return
         http0 = self.yj.http

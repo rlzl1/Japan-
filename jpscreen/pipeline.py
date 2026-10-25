@@ -177,7 +177,13 @@ def value_screen(ctx: Context, reference: Optional[str], crit: dict = CRITERIA, 
         # the company's forecast EPS and dividend (forward P/E, yield) for everyone else: pages parsed, not kept
         rest = {c: ctx.universe.get(c).yahoo_symbols for c in (set(rows) - cand - financial) if ctx.universe.get(c)}
         log_(f"  quote pages (forecast EPS, dividend) for {len(rest)} more companies")
-        ctx.prices.prefetch(rest, store=False, light=True)
+        for attempt in range(3):     # Yahoo refuses ~4 pages in 10 at random; two more passes recover most of them
+            ctx.prices.prefetch(rest, store=False, light=True)
+            missing = {c: s for c, s in rest.items() if (ctx.prices.quotes.get(c) is None or ctx.prices.quotes[c].bps is None)}
+            log_(f"    pass {attempt + 1}: {len(rest) - len(missing)} of {len(rest)} pages read")
+            if len(missing) < 0.03 * len(rest):
+                break
+            rest = missing
     for code in set(rows):
         r = row_for(code)
         if r is not None:
