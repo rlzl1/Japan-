@@ -19,7 +19,7 @@ STEPS
    Work from /home/user/Japan- for every command below.
 2. Status. ArtifactData "get" RADAR config/refresh. Update it ("update", pinned with if_version) with
    state "running" and startedAt = the current UTC time (ISO 8601). Keep the version that update returns.
-3. Download. For each collection cache, runs, watchlist, frontrun, mine, portfolio, positions, universe, deals, screen, config of
+3. Download. For each collection cache, runs, watchlist, frontrun, mine, portfolio, positions, universe, deals, screen, nobrainers, config of
    RADAR: ArtifactData "list" with query {"limit": 1000} and out_dir "/home/user/Japan-/state/inputs/db"; when a result
    says more pages remain (cache does: 48 documents), list again with its next_cursor until none remain. Write
    /home/user/Japan-/state/inputs/versions.json as one JSON object {"<collection>/<doc_id>": <version>} with the

@@ -498,7 +498,16 @@ def officers(fs: FactSet, f: Fundamentals) -> None:
 
 
 def going_concern(fs: FactSet, f: Fundamentals) -> None:
-    f.going_concern = any("GoingConcern" in x.local and (x.text or "").strip() for x in fs.facts)
+    """A real going-concern note voices doubt (重要な疑義). Every report carries the section header, usually followed by
+    該当事項はありません or by 'events' with no material uncertainty: neither is a going-concern company."""
+    f.going_concern = False
+    for x in fs.facts:
+        if "GoingConcern" not in x.local:
+            continue
+        t = re.sub(r"\s", "", x.text or "")
+        if len(t) > 40 and "疑義" in t and not re.search(r"該当(事項|なし)|ありません|不確実性は認められ", t):
+            f.going_concern = True
+            return
 
 
 def from_facts(fs: FactSet, code: str = "", source: str = "", annual: bool = True) -> Fundamentals:

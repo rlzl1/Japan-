@@ -49,6 +49,17 @@ common: asset backing 35%, earnings yield 25%, treasury 10%, dividend 10%, profi
 between a third and two thirds 10%; it also counts as a value test in the stars for profitable companies.
 Market caps exclude treasury shares. Between weekly screens the daily run re-prices every ratio to the last close.
 
+## No-brainers (NO-BRAINER)
+
+`jpscreen/nobrainer.py` runs the owner's rules over every screened company after three gates (a profit, and
+profits in at least four of the last five years; liabilities under equity; ¥2M a day of trading): cash above the
+market cap with a payout, a net-net that earns, the RE index at 0.6, a 4% dividend on P/E 10 below book, a cheap
+company shrinking its share count, an owner who can take it private, a treasury pile below book, cheap quality
+with a catalyst. Workouts come from the deal board at 2%+ to the bid or when contested. The result is the
+`nobrainers/rules` document (`python -m jpscreen nobrainer`, also part of `daily`). The page's REVIEW NOW button
+fires the "Japan no-brainer review" task, which writes tiers, business lines, verdicts and an avoid list into
+`nobrainers/current`; the refresh never touches that document.
+
 ## Deals (DEALS)
 
 `jpscreen/deals.py` keeps every tender offer, self-tender and squeeze-out seen on TDnet in `state/deals.json`

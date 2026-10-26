@@ -39,6 +39,9 @@ def db_docs(store: Store) -> dict[str, dict]:
     dl = store.read_json("deals_latest.json")
     if dl:
         docs["deals/latest"] = dl
+    nb = store.read_json("nobrainers.json")
+    if nb:
+        docs["nobrainers/rules"] = nb
     if value.get("rows_all"):
         for k, v in screen_parts(value["rows_all"]).items():
             docs[f"screen/{k}"] = v

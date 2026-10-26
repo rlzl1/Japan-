@@ -51,6 +51,19 @@ button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--key); outline-offset: 1px; }
 .mono { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
 .pos { color: var(--pos); } .neg { color: var(--neg); } .mut { color: var(--muted); } .amb { color: var(--amber); }
+.nb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 10px; }
+.nb-card { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 10px 12px; cursor: default; }
+.nb-card.mine { border-color: var(--amber-dim); }
+.nb-h { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.nb-rank { font-family: var(--font-data); color: var(--amber); font-weight: 600; min-width: 2.2em; }
+.nb-tier { font-family: var(--font-data); font-size: 0.75em; letter-spacing: 0.06em; border: 1px solid var(--amber); color: var(--amber); padding: 1px 6px; border-radius: 3px; }
+.nb-live { color: var(--muted); font-size: 0.85em; margin: 6px 0 2px; font-family: var(--font-data); }
+.nb-dl { margin: 4px 0 0; } .nb-dl div { display: grid; grid-template-columns: 62px 1fr; gap: 8px; margin: 4px 0; }
+.nb-dl dt { color: var(--muted); font-size: 0.72em; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 3px; } .nb-dl dd { margin: 0; }
+.nb-verdict { border-left: 2px solid var(--amber); padding-left: 8px; margin-top: 8px; color: var(--ink); }
+.sec-t { margin: 16px 0 6px; color: var(--amber); font-size: 0.82em; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.nb-rules summary { cursor: pointer; color: var(--muted); margin: 6px 0; } .nb-rules li { margin: 3px 0; }
+.nb-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0; color: var(--muted); font-size: 0.9em; }
 
 /* ---- top: brand + command line */
 .top { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px 12px; }
@@ -344,11 +357,12 @@ table.t tr.mine td.nm b { color: var(--key); }
     <button class="fk" role="tab" data-v="radar" aria-selected="true"><i>1</i>RADAR <span class="n" id="n-radar"></span></button>
     <button class="fk" role="tab" data-v="port" aria-selected="false"><i>2</i>PORT <span class="n" id="n-port"></span></button>
     <button class="fk" role="tab" data-v="cheap" aria-selected="false"><i>3</i>CHEAP <span class="n" id="n-cheap"></span></button>
-    <button class="fk" role="tab" data-v="deals" aria-selected="false"><i>4</i>DEALS <span class="n" id="n-deals"></span></button>
-    <button class="fk" role="tab" data-v="value" aria-selected="false"><i>5</i>VALUE</button>
-    <button class="fk" role="tab" data-v="pre" aria-selected="false"><i>6</i>PRE-DEAL <span class="n" id="n-pre"></span></button>
-    <button class="fk" role="tab" data-v="mine" aria-selected="false"><i>7</i>COVERAGE <span class="n" id="n-mine"></span></button>
-    <button class="fk" role="tab" data-v="help" aria-selected="false"><i>8</i>HELP</button>
+    <button class="fk" role="tab" data-v="nb" aria-selected="false"><i>4</i>NO-BRAINER <span class="n" id="n-nb"></span></button>
+    <button class="fk" role="tab" data-v="deals" aria-selected="false"><i>5</i>DEALS <span class="n" id="n-deals"></span></button>
+    <button class="fk" role="tab" data-v="value" aria-selected="false"><i>6</i>VALUE</button>
+    <button class="fk" role="tab" data-v="pre" aria-selected="false"><i>7</i>PRE-DEAL <span class="n" id="n-pre"></span></button>
+    <button class="fk" role="tab" data-v="mine" aria-selected="false"><i>8</i>COVERAGE <span class="n" id="n-mine"></span></button>
+    <button class="fk" role="tab" data-v="help" aria-selected="false"><i>9</i>HELP</button>
   </nav>
 
   <div class="tape" aria-label="Status">
@@ -449,6 +463,20 @@ table.t tr.mine td.nm b { color: var(--key); }
     </div>
     <div class="table-wrap"><table class="t" id="cheap-t"></table></div>
     <p class="foot"><b>指数</b> = 時価総額 ÷（正味流動資産 + 賃貸等不動産の開示時価 + 非重複土地簿価 × 50%）。<b>正味流動資産</b> = 現預金 + 売上債権 + 有価証券 + 投資有価証券 − 負債合計 − 非支配株主持分（棚卸資産は含めず）。<b>不動産・土地</b> = 賃貸等不動産の時価（建物含む）と土地加算の合計。△はマイナス。Index = market cap ÷ (net current assets + rental real estate at disclosed fair value + 50% of land not already counted). Net current assets = cash + trade receivables + securities + investment securities − all liabilities − minority interests; inventories excluded. Tax and selling costs not deducted. Δ REF compares with the 2026-10-09 reference ranking. <b>PER</b> is on the last full year's net income; <b>予想PER</b> on the company's own forecast EPS (the figure Yahoo/Kabutan show); <b>NET CASH</b> = (cash + securities + investment securities − all liabilities) ÷ market cap, so 1.0 means the business comes free; <b>YIELD</b> is the forecast dividend on the last price; <b>自己株</b> is treasury stock as a share of issued shares. <b>FIT</b> is a percentile (99 = better than 99% of the market) of a weighted mix of what your holdings have in common: asset backing 35%, earnings yield 25%, treasury 10%, dividend 10%, profits every year 10%, an owner between a third and two thirds 10%. Market cap excludes treasury shares. "All screened" lists every company with fundamentals and prices (the top 500 of the current sort; filter to narrow). Prices move daily; balance sheets update with each filing. Not a recommendation to buy or sell.</p>
+  </section>
+
+  <!-- ===================== NO-BRAINER ===================== -->
+  <section class="pane" id="nb" hidden>
+    <div class="ph"><h2>No-brainers<small>your rules on every listed company, plus the workouts on the deal board</small></h2><p id="nb-meta">Waiting for the weekly screen…</p></div>
+    <div class="controls">
+      <div class="ctl"><span>Show</span>
+        <div class="seg" id="seg-nb" role="group" aria-label="Which no-brainers">
+          <button type="button" data-v="top">Strongest</button><button type="button" data-v="all">All</button><button type="button" data-v="wo">Workouts</button>
+        </div>
+      </div>
+      <input class="search" id="nb-q" type="search" placeholder="Filter code, name or rule" aria-label="Filter no-brainers">
+    </div>
+    <div id="nb-body"></div>
   </section>
 
   <!-- ===================== DEALS ===================== -->
@@ -561,6 +589,7 @@ table.t tr.mine td.nm b { color: var(--key); }
       <dl>
         <dt>RE net-net (CHEAP)</dt><dd>Market cap ÷ (net current assets + rental real estate at fair value + 50% of non-overlapping land) below 1. The exact definition of the 不動産込みネットネット指数 ranking.</dd>
         <dt>FIT (CHEAP)</dt><dd>A percentile of a weighted mix of what the holdings have in common: asset backing (the better of net cash ÷ market cap and net current assets ÷ market cap) 35%, earnings yield on the forecast or last P/E 25%, treasury stock 10%, dividend yield 10%, profits every year 10%, an owner between a third and two thirds 10%. FIT 95 = better than 95% of companies. It also counts as a value test in the stars (95+ → 2, 90+ → 1.5, 80+ → 1), for profitable companies only.</dd>
+        <dt>NO-BRAINER</dt><dd>Your rules on every company (cash above the market cap with a payout, a net-net that earns, RE index 0.6, a 4% dividend on P/E 10 below book, a cheap company shrinking its share count, an owner who can take it private, a treasury pile below book, cheap quality with a catalyst) after three gates: profits in at least four of the last five years, liabilities under equity, ¥2M a day of trading. Workouts from the deal board at 2%+ to the bid or when contested. REVIEW NOW starts a Claude task that writes tiers, business lines, verdicts and an avoid list into the cards.</dd>
         <dt>DEALS</dt><dd>Open tender offers, MBOs, self-tenders and squeeze-outs with their terms carried across every filing on the deal, the live spread, the premium to the undisturbed price, the bid's P/B and net-cash cover, and a bump score. Follow-up filings on the radar (amendments, progress notes) take their price and spread from here.</dd>
         <dt>Net-nets</dt><dd>Current assets minus all liabilities above market cap.</dd>
         <dt>Cash-rich</dt><dd>Cash + securities + investment securities − all liabilities ≥ 70% of market cap, profitable last year.</dd>
@@ -1025,6 +1054,106 @@ table.t tr.mine td.nm b { color: var(--key); }
       tb.append(tr);
     });
     t.append(tb);
+  }
+
+  // ---------------------------------------------------------------- NO-BRAINER: the rules run at each refresh, Claude's review on demand
+  let nbDoc = null, nbCur = null, nbStatus = null, nbNote = "", nbShow = store.get("jr-nb", "top");
+  const NB_TRIGGER = "trig_016XoBmitAE7mfMnwzUm6Dsy";
+  const NB_KIND = { cash: ["Cash > mcap", "green"], netnet: ["Net-net", "green"], re: ["RE net-net", "green"], div: ["4% dividend", "amber"], buy: ["Shrinking shares", "amber"],
+    owner: ["Owner can take it out", "blue"], treasury: ["Treasury pile", "amber"], quality: ["Cheap quality + catalyst", "blue"], wo: ["Workout", "red"] };
+  const nbCurated = (code) => (nbCur ? [...(nbCur.workouts || []), ...(nbCur.generals || [])].find((x) => x.code === code) : null) || null;
+  const nbAvoid = (code) => (nbCur && nbCur.avoid ? nbCur.avoid.find((x) => x.code === code) : null) || null;
+  async function fireReview() {
+    if (!mcp || !dbRef) { nbNote = "One-tap review works when the page is open in Claude. Ask Claude in chat to review the list instead."; renderNB(); return; }
+    try {
+      const now = new Date().toISOString();
+      const ref = dbRef.doc("nobrainers/status");
+      const cur = await ref.get();
+      const data = Object.assign({}, (cur && cur.exists ? cur.data() : {}) || {}, { state: "queued", requestedAt: now, triggerId: (nbStatus && nbStatus.triggerId) || NB_TRIGGER });
+      if (cur && cur.exists) await ref.update(data); else await ref.set(data);
+      await mcp.callTool("Claude Code Remote", "fire_trigger", { trigger_id: data.triggerId, text: "Requested from the Japan Filing Radar page (REVIEW NOW)." }, { cache: false });
+      nbNote = "Review started: it reads the list and the pre-deal signals and takes 10–20 minutes. The verdicts appear here when it is done.";
+    } catch (e) { nbNote = "The review may not have started (" + ((e && e.code) || "error") + "). Try again in a few minutes, or ask Claude in chat."; }
+    renderNB();
+  }
+  function nbLive(it) {
+    const l = it.live || {}, b = [];
+    if (it.kinds[0] === "wo") {
+      b.push("bid ¥" + (num(l.bid) ? l.bid.toLocaleString("en-US") : "—"), "last ¥" + (num(l.price) ? l.price.toLocaleString("en-US") : "—"), "spread " + pctS(l.spread));
+      if (num(l.days_left)) b.push(l.days_left + " days to " + (l.end || "—"));
+      if (num(l.offer_pb)) b.push("bid P/B " + f2(l.offer_pb));
+      if (num(l.offer_net_cash)) b.push("net cash ÷ bid " + f2(l.offer_net_cash));
+      return b.join(" · ");
+    }
+    b.push("¥" + (num(l.price) ? l.price.toLocaleString("en-US") : "—"), oku(l.mcap) + "億", "P/E " + f1(l.pe) + (num(l.pe_fwd) ? " (fwd " + f1(l.pe_fwd) + ")" : ""), "P/B " + f2(l.pb),
+      "net cash " + f2(l.am_mcap) + "×", "NCAV " + f2(l.ncav_mcap) + "×");
+    if (num(l.re_index)) b.push("RE idx " + f2(l.re_index));
+    b.push("yield " + (num(l.div_yield) ? l.div_yield.toFixed(1) + "%" : "—"), "treasury " + (num(l.treasury_pct) ? l.treasury_pct.toFixed(1) + "%" : "—"));
+    if (num(l.fcf3)) b.push("FCF " + (l.fcf3 * 100).toFixed(0) + "%");
+    if (num(l.top_holder_pct)) b.push("top holder " + l.top_holder_pct.toFixed(0) + "%");
+    b.push("ADV " + advM(l.adv), "FIT " + (num(l.fit) ? Math.round(l.fit) : "—"));
+    if (l.pre) b.push("pre-deal " + l.pre + "★");
+    return b.join(" · ");
+  }
+  function nbCard(it) {
+    const c = el("article", "nb-card" + (it.mine ? " mine" : ""));
+    const h = el("div", "nb-h");
+    h.append(el("span", "nb-rank", "#" + it.rank));
+    it.kinds.forEach((k) => { const [lab, g] = NB_KIND[k] || [k, "amber"]; const t = el("span", "tag", lab); t.style.setProperty("--g", "var(--" + g + ")"); h.append(t); });
+    h.append(codeBtn(it.code));
+    h.append(nameEl("b", null, it.code, it.name));
+    if (it.mine) h.append(el("span", "new-tag", "HELD"));
+    const cur = nbCurated(it.code);
+    if (cur && cur.tier) h.append(el("span", "nb-tier", "TIER " + cur.tier));
+    if (it.status === "announced") h.append(el("span", "mut", "bid announced, not yet open"));
+    c.append(h);
+    c.append(el("div", "nb-live", nbLive(it) + " · " + (it.kinds[0] === "wo" ? "deal board" : "weekly screen, repriced daily")));
+    const dl = el("dl", "nb-dl");
+    const row = (k, v) => { if (v) { const d = el("div"); d.append(el("dt", null, k), el("dd", null, v)); dl.append(d); } };
+    row("Why", (it.why || []).join(". ") + ".");
+    if (cur && cur.business) row("Business", cur.business);
+    row("Check", (it.check || []).join(". ") + ((it.check || []).length ? "." : "") + ((it.flags || []).length ? " " + it.flags.join(". ") + "." : ""));
+    c.append(dl);
+    if (cur && cur.verdict) c.append(el("div", "nb-verdict", "Claude, " + (nbCur.date || "") + ": " + cur.verdict));
+    return c;
+  }
+  function renderNB() {
+    const body = $("nb-body");
+    if (!body) return;
+    body.replaceChildren();
+    const rows0 = (nbDoc && nbDoc.rows) || [];
+    const avoidSet = new Set((nbCur && nbCur.avoid || []).map((a) => a.code));
+    const live = rows0.filter((r) => !avoidSet.has(r.code));
+    $("n-nb").textContent = live.length ? String(live.filter((r) => r.top).length) : "";
+    $("nb-meta").textContent = nbDoc ? "Rules run " + (nbDoc.date || "") + " on prices of " + (nbDoc.price_date || "—") + " over " + (nbDoc.screened || 0).toLocaleString("en-US") + " companies: "
+      + nbDoc.workouts + " workouts, " + nbDoc.generals + " generals, " + (nbDoc.top || 0) + " strongest" + (nbCur ? " · Claude's review of " + (nbCur.date || "") + " (" + (nbCur.reviewed || 0) + " judged)" : " · no written review yet") : "Waiting for the weekly screen…";
+    body.append(el("p", "foot", "What the holdings have in common, written as rules and run over every listed company: a real business (a profit, and profits in at least four of the last five years), liabilities under equity, ¥2M a day of trading, and then at least one reason below. Workouts come from the deal board with the return set by the bid. The rules run at every refresh; REVIEW NOW asks Claude to read the list and write a tier, a line on the business and a verdict for the strongest names, and to move the traps to an avoid list."));
+    const det = el("details", "nb-rules"); det.append(el("summary", null, "The rules, in your words"));
+    const ul = el("ul", "reasons");
+    Object.entries((nbDoc && nbDoc.rules) || {}).forEach(([k, [lab, txt]]) => { const li = el("li", "r"); li.append(el("b", null, lab + ": "), document.createTextNode(txt)); ul.append(li); });
+    det.append(ul); body.append(det);
+    const bar = el("div", "nb-bar");
+    const running = nbStatus && (nbStatus.state === "running" || nbStatus.state === "queued") && Date.now() - Date.parse(nbStatus.startedAt || nbStatus.requestedAt || 0) < 3 * 3600e3;
+    if (canAdmin !== false) { const btn = el("button", "st-go", running ? "REVIEWING…" : "REVIEW NOW"); btn.type = "button"; btn.disabled = running || !dbRef; btn.addEventListener("click", fireReview); bar.append(btn); }
+    bar.append(el("span", null, nbNote || (running ? "Claude is reading the list since " + (nbStatus.startedAt || nbStatus.requestedAt || "").replace("T", " ").slice(0, 16) + " UTC" : nbCur ? (nbCur.note || "") : "No written review yet: the cards show the rules' own reasons.")));
+    body.append(bar);
+    if (!rows0.length) { body.append(el("p", "none", "Nothing passes the rules yet. The weekly screen fills this tab.")); return; }
+    const q = ($("nb-q").value || "").trim().toLowerCase();
+    const match = (r) => !q || r.code.toLowerCase().includes(q) || nameHas(r.code, r.name, q) || r.kinds.some((k) => (NB_KIND[k] || [k])[0].toLowerCase().includes(q)) || (r.why || []).join(" ").toLowerCase().includes(q);
+    const wos = live.filter((r) => r.kinds[0] === "wo" && match(r));
+    const gens = live.filter((r) => r.kinds[0] !== "wo" && match(r));
+    const sec = (title, items) => { if (!items.length) return; body.append(el("div", "sec-t", title)); const g = el("div", "nb-grid"); items.forEach((it) => g.append(nbCard(it))); body.append(g); };
+    if (nbShow !== "wo" || true) sec("Workouts · return set by the bid · " + wos.length, nbShow === "all" || nbShow === "wo" || nbShow === "top" ? wos : []);
+    if (nbShow !== "wo") {
+      sec("Strongest generals · three rules, or two with FIT 90+ · " + gens.filter((r) => r.top).length, gens.filter((r) => r.top));
+      if (nbShow === "all") sec("Generals · one or two rules · " + gens.filter((r) => !r.top).length, gens.filter((r) => !r.top));
+    }
+    if (nbCur && (nbCur.avoid || []).length && nbShow !== "wo") {
+      body.append(el("div", "sec-t", "Pass the rules, but the review says no · " + nbCur.avoid.length));
+      const ul2 = el("ul", "reasons");
+      nbCur.avoid.forEach((a) => { const li = el("li", "r"); li.append(el("b", null, a.code + " " + enName(a.code, a.name) + " "), document.createTextNode(a.why || "")); ul2.append(li); });
+      body.append(ul2);
+    }
   }
 
   // ---------------------------------------------------------------- DEALS
@@ -1604,7 +1733,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   $("des-back").addEventListener("click", closeDes);
 
   // ---------------------------------------------------------------- command line + keys
-  const VIEWS = ["radar", "port", "cheap", "deals", "value", "pre", "mine", "help"];
+  const VIEWS = ["radar", "port", "cheap", "nb", "deals", "value", "pre", "mine", "help"];
   function showView(v) {
     view = v;
     VIEWS.forEach((id) => { $(id).hidden = id !== v; });
@@ -1627,7 +1756,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     const raw = ($("cmd-in").value || "").trim();
     const q = raw.toUpperCase().replace(/\s*<?GO>?$/, "").replace(/\s+(JT|JP|EQUITY)$/, "");
     if (!q) return;
-    const viewCmd = { RADAR: "radar", PORT: "port", PORTFOLIO: "port", CHEAP: "cheap", NETNET: "cheap", SCREEN: "cheap", DEALS: "deals", TOB: "deals", VALUE: "value", PRE: "pre", "PRE-DEAL": "pre", COVERAGE: "mine", MINE: "mine", HELP: "help" }[q];
+    const viewCmd = { RADAR: "radar", PORT: "port", PORTFOLIO: "port", CHEAP: "cheap", NETNET: "cheap", SCREEN: "cheap", NB: "nb", NOBRAINER: "nb", "NO-BRAINER": "nb", DEALS: "deals", TOB: "deals", VALUE: "value", PRE: "pre", "PRE-DEAL": "pre", COVERAGE: "mine", MINE: "mine", HELP: "help" }[q];
     if (viewCmd) { showView(viewCmd); $("cmd-in").value = ""; return; }
     if (/^[0-9][0-9A-Z]{3}$/.test(q)) { openDes(q); $("cmd-in").value = ""; return; }
     const ql = raw.toLowerCase();
@@ -1640,7 +1769,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     if (e.key === "Escape" && !$("des").hidden) { closeDes(); return; }
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (/^[1-8]$/.test(e.key)) { showView(VIEWS[Number(e.key) - 1]); e.preventDefault(); }
+    if (/^[1-9]$/.test(e.key)) { showView(VIEWS[Number(e.key) - 1]); e.preventDefault(); }
     else if (e.key === "p" || e.key === "P") { showView("port"); e.preventDefault(); }
     else if (e.key === "/") { $("cmd-in").focus(); e.preventDefault(); }
   });
@@ -1648,7 +1777,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   // ---------------------------------------------------------------- controls
   function syncSegs() {
     const sync = (id, val) => document.querySelectorAll("#" + id + " button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === String(val))));
-    sync("seg-period", period); sync("seg-stars", minStars); sync("seg-mkt", cheapMkt); sync("seg-adv", cheapAdv); sync("seg-pre", preMin); sync("seg-uni", cheapUni); sync("seg-deals", dealsShow);
+    sync("seg-period", period); sync("seg-stars", minStars); sync("seg-mkt", cheapMkt); sync("seg-adv", cheapAdv); sync("seg-pre", preMin); sync("seg-uni", cheapUni); sync("seg-deals", dealsShow); sync("seg-nb", nbShow);
     sync("seg-pgroup", portGroup); sync("seg-pkind", portKind);
   }
   function bindSeg(id, set, after) {
@@ -1660,6 +1789,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   bindSeg("seg-adv", (v) => { cheapAdv = Number(v); store.set("jr-adv", v); }, renderCheap);
   bindSeg("seg-uni", (v) => { cheapUni = v; store.set("jr-uni", v); }, renderCheap);
   bindSeg("seg-deals", (v) => { dealsShow = v; store.set("jr-deals", v); }, renderDeals);
+  bindSeg("seg-nb", (v) => { nbShow = v; store.set("jr-nb", v); }, renderNB);
   bindSeg("seg-pre", (v) => { preMin = Number(v); store.set("jr-pre", v); }, renderPre);
   bindSeg("seg-pgroup", (v) => { portGroup = v; store.set("jr-pgroup", v); }, renderPort);
   bindSeg("seg-pkind", (v) => { portKind = v; }, renderFeed);
@@ -1669,13 +1799,14 @@ table.t tr.mine td.nm b { color: var(--key); }
   $("show-failed").addEventListener("change", (e) => { showFailed = e.target.checked; store.set("jr-show-failed", showFailed ? "1" : "0"); renderRadar(); });
   $("cheap-q").addEventListener("input", renderCheap);
   $("deals-q").addEventListener("input", renderDeals);
+  $("nb-q").addEventListener("input", renderNB);
   $("pre-q").addEventListener("input", renderPre);
   document.querySelectorAll(".wl-btn").forEach((b) => b.addEventListener("click", () => { wlList = b.dataset.l; store.set("jr-wl", wlList); renderValue(); }));
 
   function renderRadar() { renderTape(); renderIdeas(); renderDesk(); }
-  function renderAll() { renderRadar(); renderPort(); renderCheap(); renderDeals(); renderValue(); renderPre(); renderMine(); fillDatalist(); }
+  function renderAll() { renderRadar(); renderPort(); renderCheap(); renderNB(); renderDeals(); renderValue(); renderPre(); renderMine(); fillDatalist(); }
 
-  const hashView = { "#port": "port", "#portfolio": "port", "#cheap": "cheap", "#deals": "deals", "#value": "value", "#pre": "pre", "#mine": "mine", "#coverage": "mine", "#help": "help", "#radar": "radar" }[location.hash];
+  const hashView = { "#port": "port", "#portfolio": "port", "#cheap": "cheap", "#nb": "nb", "#nobrainers": "nb", "#deals": "deals", "#value": "value", "#pre": "pre", "#mine": "mine", "#coverage": "mine", "#help": "help", "#radar": "radar" }[location.hash];
   const saved = store.get("jr-view", "radar");
   showView(hashView || (VIEWS.includes(saved) ? saved : "radar"));
   renderAll();
@@ -1699,6 +1830,11 @@ table.t tr.mine td.nm b { color: var(--key); }
     }, () => {});
     db.collection("frontrun").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "latest"); fr = d ? d.data() : null; renderAll(); }, () => {});
     db.collection("deals").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "latest"); dealsDoc = d ? d.data() : null; renderDeals(); }, () => {});
+    db.collection("nobrainers").onSnapshot((snap) => {
+      const r = snap.docs.find((x) => x.id === "rules"), c = snap.docs.find((x) => x.id === "current"), st = snap.docs.find((x) => x.id === "status");
+      nbDoc = r ? r.data() : null; nbCur = c ? c.data() : null; nbStatus = st ? st.data() : null;
+      renderNB();
+    }, () => {});
     db.collection("screen").onSnapshot((snap) => {
       screenRows = [];
       snap.docs.forEach((d) => ((d.data() || {}).rows || []).forEach((r) => screenRows.push(r)));

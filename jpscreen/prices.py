@@ -271,12 +271,17 @@ class PriceBook:
         """Fill quotes for every listed stock (price, shares, market cap; no history) from the ranking pages."""
         n = 0
         for code, r in bulk_prices(http).items():
-            if code in self.quotes and self.quotes[code].history:
+            d = re.search(r"(\d{4})/(\d{2})/(\d{2})", r.get("asof") or "")
+            day = f"{d.group(1)}-{d.group(2)}-{d.group(3)}" if d else None
+            old = self.quotes.get(code)
+            if old is not None and old.history:
+                if r.get("price") and day and (old.price_date or "") < day:
+                    old.price, old.price_date = r["price"], day       # newer close than the stored quote's
+                    if old.shares_issued:
+                        old.mcap_issued = old.price * old.shares_issued
                 continue      # a full quote (with trading history) is already here
             if r.get("price"):
-                d = re.search(r"(\d{4})/(\d{2})/(\d{2})", r.get("asof") or "")
-                self.quotes[code] = Quote(code=code, symbol=f"{code}.T", name=r["name"], price=r["price"],
-                                          price_date=f"{d.group(1)}-{d.group(2)}-{d.group(3)}" if d else None,
+                self.quotes[code] = Quote(code=code, symbol=f"{code}.T", name=r["name"], price=r["price"], price_date=day,
                                           mcap_issued=r.get("mcap"), shares_issued=r.get("shares"), market_label=r.get("market") or "")
                 n += 1
         return n

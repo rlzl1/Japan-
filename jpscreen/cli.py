@@ -121,7 +121,7 @@ def cmd_port(args, ctx, edinet):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["radar", "value", "edinet", "all", "export", "port", "port-apply", "daily", "batches",
-                                    "backtest"])
+                                    "backtest", "nobrainer"])
     ap.add_argument("--db-dir", help="the dashboard database downloaded as JSON files (one folder per collection)")
     ap.add_argument("--versions", help="JSON {\"collection/doc\": version} of the downloaded documents")
     ap.add_argument("--weekly", action="store_true", help="daily: also rerun the whole-market value screen")
@@ -170,13 +170,15 @@ def main(argv=None):
         print(f"applied {n} translations; {len(res['to_translate'])} titles still untranslated")
     if args.cmd == "daily":
         cmd_daily(args, ctx, edinet)
+    if args.cmd == "nobrainer":
+        cmd_nobrainer(args, ctx)
     if args.cmd == "backtest":
         from .backtest import run as backtest
         codes = [c for c in args.codes.split(",") if c] or list(load_mine(args.watchlist))
         res = backtest(ctx, codes, months=args.months)
         ctx.store.write_json("backtest.json", res)
         print("wrote", Path(args.state) / "backtest.json")
-    if args.cmd in ("export", "all", "radar", "value", "port", "port-apply", "daily"):
+    if args.cmd in ("export", "all", "radar", "value", "port", "port-apply", "daily", "nobrainer"):
         paths = export_all(ctx.store)
         for p in paths:
             print("wrote", p)
@@ -246,11 +248,28 @@ def cmd_daily(args, ctx, edinet):
     if args.positions_dir is None and db:
         args.positions_dir = str(Path(db) / "positions")
     res = cmd_port(args, ctx, edinet)
+    cmd_nobrainer(args, ctx)
     if res:
         s = res["summary"]
         new = sum(h["new"] for h in s["holdings"])
         print(f"SUMMARY: {len(s['holdings'])} holdings, {new} new filings/stories; "
               f"{len(res['to_translate'])} titles to translate" + ("; weekly value screen rerun" if weekly else ""))
+
+
+def cmd_nobrainer(args, ctx):
+    """The owner's rules over the weekly screen and the deal board -> state/nobrainers.json (nobrainers/rules)."""
+    import json as _json
+    from .nobrainer import build
+    value = ctx.store.read_json("value.json", {})
+    fr = (ctx.store.read_json("frontrun.json") or {}).get("rows") or []
+    dl = ctx.store.read_json("deals_latest.json") or {}
+    hits = [h for p in sorted((Path(args.state) / "runs").glob("*.json"))[-60:] for h in _json.loads(p.read_text()).get("hits", [])]
+    port = ctx.store.read_json("portfolio/summary.json")      # HELD means held, not merely on the watchlist
+    mine = {h["code"] for h in port.get("holdings", [])} if port else set(ctx.mine)
+    nb = build(ctx, value, fr, dl.get("rows") or [], hits, today_jst(), mine=mine)
+    ctx.store.write_json("nobrainers.json", nb)
+    print(f"no-brainers: {nb['workouts']} workouts, {nb['generals']} generals ({nb['top']} strongest) from {nb['screened']} screened")
+    return nb
 
 
 def cmd_batches(args, ctx):
