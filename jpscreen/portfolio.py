@@ -51,9 +51,21 @@ def _load_dir(d: Optional[str | Path]) -> list[dict]:
     return out
 
 
-def load_holdings(tracker_dir: Optional[str], positions_dir: Optional[str]) -> list[dict]:
-    """Merge the tracker's companies with the radar's own positions; positions carry shares and cost."""
+def load_holdings(tracker_dir: Optional[str], positions_dir: Optional[str], prev_dir: Optional[str] = None) -> list[dict]:
+    """Merge the tracker's companies with the radar's own positions; positions carry shares and cost. When the tracker
+    gives nothing (unreadable or gone), the holdings of the last portfolio the radar built stand in for it."""
     hold: dict[str, dict] = {}
+    if not _load_dir(tracker_dir) and prev_dir and (Path(prev_dir) / "summary.json").exists():
+        try:
+            prev = json.loads((Path(prev_dir) / "summary.json").read_text())
+            prev = prev.get("data") if isinstance(prev.get("data"), dict) and "version" in prev else prev
+        except ValueError:
+            prev = {}
+        for h in (prev or {}).get("holdings") or []:
+            code = norm_code(h.get("code") or "")
+            if re.match(r"^\d[0-9A-Z]{3}$", code) and h.get("source") in ("tracker", "both", "previous"):
+                hold[code] = dict(code=code, group=h.get("group") or "held", en=h.get("en") or "", name=h.get("name") or "",
+                                  source="previous")
     for t in _load_dir(tracker_dir):
         code = norm_code(t.get("code") or t["_id"])
         if not re.match(r"^\d[0-9A-Z]{3}$", code):
@@ -71,7 +83,7 @@ def load_holdings(tracker_dir: Optional[str], positions_dir: Optional[str]) -> l
         for k in ("shares", "cost", "note", "added"):
             if p.get(k) not in (None, ""):
                 h[k] = p[k]
-        h["source"] = "both" if h.get("source") == "tracker" else "radar"
+        h["source"] = "both" if h.get("source") in ("tracker", "previous") else "radar"
     return list(hold.values())
 
 

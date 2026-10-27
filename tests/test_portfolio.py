@@ -114,3 +114,16 @@ def test_short_en():
 
 def test_title_en_half_year():
     assert title_en("2027年3月期 第2四半期(中間期)決算短信〔日本基準〕(連結)") == "H1 earnings report"
+
+
+def test_holdings_fall_back_to_the_last_portfolio_when_the_tracker_is_gone(tmp_path):
+    import json
+    from jpscreen.portfolio import load_holdings
+    prev = tmp_path / "prev"; prev.mkdir()
+    (prev / "summary.json").write_text(json.dumps({"holdings": [
+        {"code": "4624", "group": "held", "en": "Isamu Paint", "source": "tracker"},
+        {"code": "7203", "group": "watch", "source": "radar"}]}))
+    pos = tmp_path / "pos"; pos.mkdir()
+    (pos / "7203.json").write_text(json.dumps({"code": "7203", "group": "watch"}))
+    h = {x["code"]: x for x in load_holdings(str(tmp_path / "missing"), str(pos), str(prev))}
+    assert set(h) == {"4624", "7203"} and h["4624"]["source"] == "previous" and h["7203"]["source"] == "radar"

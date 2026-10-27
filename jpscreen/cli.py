@@ -104,7 +104,7 @@ def cmd_value(args, ctx, edinet):
 def cmd_port(args, ctx, edinet):
     import json as _json
     from .portfolio import build, load_holdings, save, universe_doc, universe_en_doc
-    holdings = load_holdings(args.tracker_dir, args.positions_dir)
+    holdings = load_holdings(args.tracker_dir, args.positions_dir, args.prev_dir)
     if not holdings:
         print("portfolio: no holdings found (pass --tracker-dir and/or --positions-dir)")
         return None
