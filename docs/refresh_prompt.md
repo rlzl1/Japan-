@@ -48,7 +48,8 @@ STEPS
    RADAR with exactly those entries as `writes` (file_path entries upload the file; do not inline the data). If a
    batch is refused because a document changed since it was read, list that document's collection again (out_dir
    a scratch folder) to get its current version, set that entry's if_version to it and send the batch again; the
-   refresh owns every document it writes. Never write to the `positions` or `config` collections in this step.
+   refresh owns every document it writes. Never write to the `positions` or `config` collections in this step, and
+   never to nobrainers/current or nobrainers/status (those belong to the review task).
 7. Finish. Update RADAR config/refresh (pinned with the version from step 2): state "done" (or "error"),
    finishedAt and lastRunAt = the current UTC time, lastSummary = one short line, for example
    "3 new on holdings: 9478 H1 results, buyback; 12 radar hits" or "No new filings on holdings", and lastError =
