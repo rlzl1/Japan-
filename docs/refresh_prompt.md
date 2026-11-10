@@ -23,7 +23,8 @@ STEPS
    RADAR: ArtifactData "list" with query {"limit": 1000} and out_dir "/home/user/Japan-/state/inputs/db"; when a result
    says more pages remain (cache does: 48 documents), list again with its next_cursor until none remain. Write
    /home/user/Japan-/state/inputs/versions.json as one JSON object {"<collection>/<doc_id>": <version>} with the
-   version of every document those list results show (they print one line per document with its version).
+   version of every document those list results show (they print one line per document with its version; the saved
+   files do not contain the version, so take it from the list results).
    Then list TRACKER's `stocks` collection with out_dir "/home/user/Japan-/state/inputs/tracker". If TRACKER cannot be
    read (no such artifact, no access, or empty), carry on without it: the run then keeps the holdings of the last
    portfolio it built (portfolio/summary) plus the positions added on the page. Do not stop the refresh for it;
