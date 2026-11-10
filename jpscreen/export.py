@@ -39,6 +39,9 @@ def db_docs(store: Store) -> dict[str, dict]:
     dl = store.read_json("deals_latest.json")
     if dl:
         docs["deals/latest"] = dl
+    sp = store.read_json("special_board.json")
+    if sp:
+        docs["special/board"] = sp
     nb = store.read_json("nobrainers.json")
     if nb:
         docs["nobrainers/rules"] = nb
@@ -68,8 +71,9 @@ def db_docs(store: Store) -> dict[str, dict]:
 
 
 SCREEN_FIELDS = ("code", "name", "market", "sector", "price", "price_date", "mcap", "re_index", "ncav_mcap", "am_mcap", "pe",
-                 "pe_fwd", "pb", "div_yield", "treasury_pct", "profit_years", "years", "top_holder_pct", "adv", "fit", "lists")
-SCREEN_PARTS = 6
+                 "pe_fwd", "pb", "div_yield", "treasury_pct", "profit_years", "years", "top_holder_pct", "adv", "fit", "lists",
+                 "nb")           # nb: why the company is or is not a no-brainer (nobrainer.build)
+SCREEN_PARTS = 8
 
 
 def screen_parts(rows: list[dict]) -> dict[str, dict]:

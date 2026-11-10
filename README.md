@@ -60,7 +60,22 @@ with a catalyst. Workouts come from the deal board at 2%+ to the bid or when con
 fires the "Japan no-brainer review" task, which writes tiers, business lines, verdicts and an avoid list into
 `nobrainers/current`; the refresh never touches that document.
 
-## Deals (DEALS)
+## Special situations (SPECIAL)
+
+`jpscreen/workouts.py` builds the special-situations board (`special/board`): tender offers, self-tenders and
+squeeze-outs from the deal memory, the stub after a successful going-private tender, share exchanges and mergers
+by exchange ratio (deal value = ratio × the acquirer's price), liquidations (stated distribution, else net current
+assets per share), cash returns from capital surplus, reverse mergers and spin-offs. Every row has the terms, the
+live spread, days to the cash, the annualised return and a risk grade (A agreed and clean, B one open question,
+C contested, doubted or unread) with what helps and what can break it. Grade A/B rows with 2% to the cash (or
+1%+ worth 6% a year) are the NO-BRAINER tab's workouts; a company under a live deal is not listed as a general.
+The first run reads back 120 days.
+
+The no-brainer rules use the company's forecast P/E, or the three-year average when last year's profit is more
+than twice the years before; they report the cash test on cash alone, and every screened company carries the
+reason it is or is not listed (`nb` in the `screen/p*` rows), shown when a code is typed into the tab's filter.
+
+## Deal memory
 
 `jpscreen/deals.py` keeps every tender offer, self-tender and squeeze-out seen on TDnet in `state/deals.json`
 (mirrored in the `deals/latest` document), folding each later filing on the same deal into one record: the

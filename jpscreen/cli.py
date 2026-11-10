@@ -237,6 +237,12 @@ def cmd_daily(args, ctx, edinet):
         if p.stem == "latest" and not ctx.store.read_json("frontrun.json"):
             d = _json.loads(p.read_text())
             ctx.store.write_json("frontrun.json", d.get("data") or d)
+    for p in collection_files(db, "special"):    # mergers, liquidations and returns in progress
+        if p.stem == "board" and not ctx.store.read_json("situations.json"):
+            d = _json.loads(p.read_text())
+            d = d.get("data") or d
+            if d.get("memory"):
+                ctx.store.write_json("situations.json", dict(sits=d["memory"], updated=d.get("date")))
     for p in collection_files(db, "deals"):      # open deals and their terms, carried between containers
         if p.stem == "latest" and not ctx.store.read_json("deals.json"):
             d = _json.loads(p.read_text())
@@ -262,12 +268,13 @@ def cmd_nobrainer(args, ctx):
     from .nobrainer import build
     value = ctx.store.read_json("value.json", {})
     fr = (ctx.store.read_json("frontrun.json") or {}).get("rows") or []
-    dl = ctx.store.read_json("deals_latest.json") or {}
+    dl = ctx.store.read_json("special_board.json") or ctx.store.read_json("deals_latest.json") or {}
     hits = [h for p in sorted((Path(args.state) / "runs").glob("*.json"))[-60:] for h in _json.loads(p.read_text()).get("hits", [])]
     port = ctx.store.read_json("portfolio/summary.json")      # HELD means held, not merely on the watchlist
     mine = {h["code"] for h in port.get("holdings", [])} if port else set(ctx.mine)
     nb = build(ctx, value, fr, dl.get("rows") or [], hits, today_jst(), mine=mine)
     ctx.store.write_json("nobrainers.json", nb)
+    ctx.store.write_json("value.json", value)          # rows now carry `nb`: why each company is or is not listed
     print(f"no-brainers: {nb['workouts']} workouts, {nb['generals']} generals ({nb['top']} strongest) from {nb['screened']} screened")
     return nb
 

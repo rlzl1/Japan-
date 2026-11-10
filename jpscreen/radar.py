@@ -17,6 +17,7 @@ from typing import Optional
 from .classify import CAT_LABEL, CATALYST_LABEL, Tag, classify
 from .docparse import parse_catalyst
 from .deals import DealBook, bidder_from_title
+from .workouts import SituationBook, board as special_board
 from .fundamentals import from_facts
 from .prices import PriceBook
 from .rate import LIMITS, evaluate, fin_line, headline
@@ -48,6 +49,7 @@ class Context:
     limits: dict = field(default_factory=lambda: dict(LIMITS))
     max_docs: int = 800
     max_kessan: int = 800
+    backfill_days: int = 120                         # deals and situations read back this far on a first run
 
 
 
@@ -99,10 +101,15 @@ def scan(ctx: Context, start: dt.date, end: dt.date, log_=print) -> dict:
     harvest_kessan(ctx, items, log_)
     names = NameIndex(ctx.universe)
     book = DealBook(ctx.store)
-    if not book.deals:          # first run: the last weeks' deals, so follow-up filings carry their terms
-        book.update(ctx, ctx.tdnet.list_range(start - dt.timedelta(days=45), start - dt.timedelta(days=1)), names,
-                    max_reads=150, log_=log_)
+    sits = SituationBook(ctx.store)
+    if not book.deals or not sits.sits:     # first run: four months of deals, so follow-ups carry their terms
+        back = ctx.tdnet.list_range(start - dt.timedelta(days=ctx.backfill_days), start - dt.timedelta(days=1))
+        if not book.deals:
+            book.update(ctx, back, names, max_reads=400, log_=log_)
+        if not sits.sits:
+            sits.update(ctx, back, names, max_reads=200, log_=log_)
     book.update(ctx, items, names, log_=log_)
+    sits.update(ctx, items, names, log_=log_)
 
     tagged: list[tuple[Disclosure, Tag, str]] = []
     for d in items:
@@ -224,7 +231,9 @@ def scan(ctx: Context, start: dt.date, end: dt.date, log_=print) -> dict:
                  doc_read=cat.get("doc_read", False))
         hits_by_day.setdefault(d.ymd, []).append(h)
     ctx.store.write_json("deals_latest.json", book.doc(ctx, asof, ctx.activists))
+    ctx.store.write_json("special_board.json", special_board(ctx, book, sits, asof, ctx.activists))
     book.save(asof)
+    sits.save(asof)
     ctx.store.save()
     ctx.prices.save()
     now = dt.datetime.now(JST).isoformat(timespec="minutes")

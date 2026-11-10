@@ -255,21 +255,22 @@ class DealBook:
             if deal.get("status") not in ("closed", "withdrawn") and deal.get("end"):
                 if (t0 - dt.date.fromisoformat(deal["end"])).days > 5:
                     deal["status"] = "ended"       # the period has passed and no result filing was seen
-            if deal.get("ref_price") is None and deal.get("status") in ("open", "announced", None):
+            if deal.get("ref_price") is None:
                 before = [r for r in ((q.history if q else None) or []) if r[0] < deal["first_date"]]
                 if before:
                     deal["ref_price"], deal["ref_date"] = before[0][1], before[0][0]
                 else:
                     comp = ctx.universe.get(code)
-                    sym = (comp.yahoo_symbols if comp else [code + ".T"])[0]
-                    got = close_before(ctx.tdnet.http, sym, deal["first_date"])
+                    sym = (getattr(comp, "yahoo_symbols", None) or [code + ".T"])[0]
+                    http = getattr(ctx.tdnet, "http", None)
+                    got = close_before(http, sym, deal["first_date"]) if http is not None else None
                     if got:
                         deal["ref_date"], deal["ref_price"] = got
             live = dict(deal)
             live.pop("docs", None)
             price = deal.get("price")
             if q and q.price:
-                live["last"], live["last_date"] = q.price, q.price_date
+                live["last"], live["px_date"] = q.price, q.price_date
                 if price:
                     live["spread"] = round(price / q.price - 1, 4)
             if price and deal.get("ref_price"):

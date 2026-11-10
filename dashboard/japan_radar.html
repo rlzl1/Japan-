@@ -358,7 +358,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     <button class="fk" role="tab" data-v="port" aria-selected="false"><i>2</i>PORT <span class="n" id="n-port"></span></button>
     <button class="fk" role="tab" data-v="cheap" aria-selected="false"><i>3</i>CHEAP <span class="n" id="n-cheap"></span></button>
     <button class="fk" role="tab" data-v="nb" aria-selected="false"><i>4</i>NO-BRAINER <span class="n" id="n-nb"></span></button>
-    <button class="fk" role="tab" data-v="deals" aria-selected="false"><i>5</i>DEALS <span class="n" id="n-deals"></span></button>
+    <button class="fk" role="tab" data-v="deals" aria-selected="false"><i>5</i>SPECIAL <span class="n" id="n-deals"></span></button>
     <button class="fk" role="tab" data-v="value" aria-selected="false"><i>6</i>VALUE</button>
     <button class="fk" role="tab" data-v="pre" aria-selected="false"><i>7</i>PRE-DEAL <span class="n" id="n-pre"></span></button>
     <button class="fk" role="tab" data-v="mine" aria-selected="false"><i>8</i>COVERAGE <span class="n" id="n-mine"></span></button>
@@ -474,24 +474,25 @@ table.t tr.mine td.nm b { color: var(--key); }
           <button type="button" data-v="top">Strongest</button><button type="button" data-v="all">All</button><button type="button" data-v="wo">Workouts</button>
         </div>
       </div>
-      <input class="search" id="nb-q" type="search" placeholder="Filter code, name or rule" aria-label="Filter no-brainers">
+      <input class="search" id="nb-q" type="search" placeholder="Type any code or name to check it" aria-label="Filter no-brainers or check a company">
     </div>
     <div id="nb-body"></div>
   </section>
 
-  <!-- ===================== DEALS ===================== -->
+  <!-- ===================== SPECIAL SITUATIONS ===================== -->
   <section class="pane" id="deals" hidden>
-    <div class="ph"><h2>Open deals<small>tender offers, MBOs, self-tenders and squeeze-outs · the bid, today's spread, days left, and the signs a bid gets raised</small></h2><p id="deals-meta">Waiting for the first scan…</p></div>
+    <div class="ph"><h2>Special situations<small>every live corporate action whose return is set by the deal, not the market · graded A / B / C</small></h2><p id="deals-meta">Waiting for the first scan…</p></div>
     <div class="controls">
-      <div class="ctl"><span>Show</span>
-        <div class="seg" id="seg-deals" role="group" aria-label="Deal status">
-          <button type="button" data-v="open">Open</button><button type="button" data-v="all">All, incl. closed</button>
+      <div class="ctl"><span>Type</span>
+        <div class="seg" id="seg-deals" role="group" aria-label="Situation type">
+          <button type="button" data-v="live">All live</button><button type="button" data-v="cash">Bids &amp; cash-outs</button><button type="button" data-v="ratio">Exchange ratio</button><button type="button" data-v="other">Liquidations, returns, reverse, spin-offs</button><button type="button" data-v="done">Finished</button>
         </div>
       </div>
-      <input class="search" id="deals-q" type="search" placeholder="Filter code, name or bidder" aria-label="Filter deals">
+      <input class="search" id="deals-q" type="search" placeholder="Filter code, name or counterparty" aria-label="Filter situations">
     </div>
+    <p class="foot" id="deals-stats"></p>
     <div class="table-wrap"><table class="t" id="deals-t"></table></div>
-    <p class="foot">Every TDnet filing on a deal is folded into one row: the opening announcement, the board's opinion, changes of terms, extensions, progress notes and the result. <b>Spread</b> = bid ÷ last price − 1 (negative: the market trades above the bid, expecting more). <b>Premium</b> is the bid against the close before the first filing. <b>Bid P/B</b> and <b>Net cash ÷ bid</b> value the whole company at the bid: a bid below book, or one that net cash alone nearly covers, is the kind that gets contested. <b>Signals</b> add up to a bump score: trading above the bid, low premium (&lt; 30%), cheap bid, an activist on the register count one each; MBO, parent buy-out, an earlier raise and a non-supportive board count half. Plain spreads on agreed Japanese bids run 0–2% and are crowded; the money has been in bids that get raised. Partial bids and ended periods are marked. Not a recommendation to buy or sell.</p>
+    <p class="foot"><b>Types.</b> <b>Tender offer</b>: a cash bid for the company (MBO, parent buy-out, third party, partial). <b>Squeeze-out</b>: the cash-out after a bid; the price is fixed and only the vote and the date remain. <b>After the tender</b>: the stub between a successful going-private bid and its squeeze-out, which pays the same price. <b>Exchange ratio</b>: a share exchange or merger between listed companies; deal value = ratio × the acquirer's price. <b>Liquidation</b>: the stated distribution (or, when none is stated, net current assets per share) against the price. <b>Cash return</b>: cash paid from capital surplus. <b>Reverse merger</b> and <b>spin-off</b> rows are followed for their dates. <b>Spread</b> = deal value ÷ last price − 1; <b>a year</b> annualises it to the cash date. <b>Grade</b>: A = agreed cash deal with nothing unusual; B = one open question (partial, not yet launched, under 1%, unhedged ratio); C = contested, doubted by the market, or terms not read. Rows graded A or B with 2% or more to the cash (or 1%+ worth 6% a year) also appear on the NO-BRAINER tab. Every filing on a deal is folded into its row; open the latest filing before acting. Not a recommendation to buy or sell.</p>
   </section>
 
   <!-- ===================== VALUE ===================== -->
@@ -590,7 +591,7 @@ table.t tr.mine td.nm b { color: var(--key); }
         <dt>RE net-net (CHEAP)</dt><dd>Market cap ÷ (net current assets + rental real estate at fair value + 50% of non-overlapping land) below 1. The exact definition of the 不動産込みネットネット指数 ranking.</dd>
         <dt>FIT (CHEAP)</dt><dd>A percentile of a weighted mix of what the holdings have in common: asset backing (the better of net cash ÷ market cap and net current assets ÷ market cap) 35%, earnings yield on the forecast or last P/E 25%, treasury stock 10%, dividend yield 10%, profits every year 10%, an owner between a third and two thirds 10%. FIT 95 = better than 95% of companies. It also counts as a value test in the stars (95+ → 2, 90+ → 1.5, 80+ → 1), for profitable companies only.</dd>
         <dt>NO-BRAINER</dt><dd>Your rules on every company (cash above the market cap with a payout, a net-net that earns, RE index 0.6, a 4% dividend on P/E 10 below book, a cheap company shrinking its share count, an owner who can take it private, a treasury pile below book, cheap quality with a catalyst) after three gates: profits in at least four of the last five years, liabilities under equity, ¥2M a day of trading. Workouts from the deal board at 2%+ to the bid or when contested. REVIEW NOW starts a Claude task that writes tiers, business lines, verdicts and an avoid list into the cards.</dd>
-        <dt>DEALS</dt><dd>Open tender offers, MBOs, self-tenders and squeeze-outs with their terms carried across every filing on the deal, the live spread, the premium to the undisturbed price, the bid's P/B and net-cash cover, and a bump score. Follow-up filings on the radar (amendments, progress notes) take their price and spread from here.</dd>
+<dt>SPECIAL</dt><dd>The special-situations board: tender offers, MBOs and parent buy-outs, squeeze-outs, the stub after a successful tender, share exchanges and mergers by exchange ratio, liquidations, cash returns from capital, reverse mergers and spin-offs. Each row folds every filing on the deal into the terms, the live spread, the days to the cash, the annualised return and a risk grade (A agreed and clean, B one open question, C contested or unread) with what helps and what can break it. Grade A/B rows with a real spread also show on NO-BRAINER.</dd>
         <dt>Net-nets</dt><dd>Current assets minus all liabilities above market cap.</dd>
         <dt>Cash-rich</dt><dd>Cash + securities + investment securities − all liabilities ≥ 70% of market cap, profitable last year.</dd>
         <dt>Deep value</dt><dd>P/E ≤ 6 and P/B ≤ 0.6, profitable in at least 4 of the last 5 years.</dd>
@@ -1079,7 +1080,8 @@ table.t tr.mine td.nm b { color: var(--key); }
   function nbLive(it) {
     const l = it.live || {}, b = [];
     if (it.kinds[0] === "wo") {
-      b.push("bid ¥" + (num(l.bid) ? l.bid.toLocaleString("en-US") : "—"), "last ¥" + (num(l.price) ? l.price.toLocaleString("en-US") : "—"), "spread " + pctS(l.spread));
+      b.push("grade " + (l.grade || "—"), "deal ¥" + (num(l.bid) ? l.bid.toLocaleString("en-US") : "—"), "last ¥" + (num(l.price) ? l.price.toLocaleString("en-US") : "—"), "spread " + pctS(l.spread));
+      if (num(l.ann)) b.push((l.ann * 100).toFixed(0) + "% a year");
       if (num(l.days_left)) b.push(l.days_left + " days to " + (l.end || "—"));
       if (num(l.offer_pb)) b.push("bid P/B " + f2(l.offer_pb));
       if (num(l.offer_net_cash)) b.push("net cash ÷ bid " + f2(l.offer_net_cash));
@@ -1088,6 +1090,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     b.push("¥" + (num(l.price) ? l.price.toLocaleString("en-US") : "—"), oku(l.mcap) + "億", "P/E " + f1(l.pe) + (num(l.pe_fwd) ? " (fwd " + f1(l.pe_fwd) + ")" : ""), "P/B " + f2(l.pb),
       "net cash " + f2(l.am_mcap) + "×", "NCAV " + f2(l.ncav_mcap) + "×");
     if (num(l.re_index)) b.push("RE idx " + f2(l.re_index));
+    if (num(l.solid)) b.push("cash alone " + f2(l.solid) + "×");
     b.push("yield " + (num(l.div_yield) ? l.div_yield.toFixed(1) + "%" : "—"), "treasury " + (num(l.treasury_pct) ? l.treasury_pct.toFixed(1) + "%" : "—"));
     if (num(l.fcf3)) b.push("FCF " + (l.fcf3 * 100).toFixed(0) + "%");
     if (num(l.top_holder_pct)) b.push("top holder " + l.top_holder_pct.toFixed(0) + "%");
@@ -1139,13 +1142,30 @@ table.t tr.mine td.nm b { color: var(--key); }
     body.append(bar);
     if (!rows0.length) { body.append(el("p", "none", "Nothing passes the rules yet. The weekly screen fills this tab.")); return; }
     const q = ($("nb-q").value || "").trim().toLowerCase();
+    if (q.length >= 2) {      // check any company: on the list or not, and why
+      const onList = new Set(live.map((r) => r.code));
+      const hits = screenRows.filter((r) => r.code.toLowerCase() === q || (q.length >= 3 && nameHas(r.code, r.name, q))).slice(0, 8);
+      if (hits.length) {
+        body.append(el("div", "sec-t", "Check a company · is it on the list, and why"));
+        const ul0 = el("ul", "reasons");
+        hits.forEach((r) => {
+          const li = el("li", "r");
+          li.append(codeBtn(r.code), document.createTextNode(" "), el("b", null, enName(r.code, r.name) + " "));
+          const tagEl = el("span", "st " + (onList.has(r.code) ? "ok" : "miss"), onList.has(r.code) ? "ON THE LIST" : "NOT LISTED"); li.append(tagEl);
+          li.append(document.createTextNode(" " + (r.nb || "not assessed yet (next weekly screen)") + " · P/E " + f1(num(r.pe_fwd) ? r.pe_fwd : r.pe) + ", P/B " + f2(r.pb) + ", net cash " + f2(r.am_mcap) + "×, RE idx " + f2(r.re_index) + ", FIT " + (num(r.fit) ? Math.round(r.fit) : "—")));
+          ul0.append(li);
+        });
+        body.append(ul0);
+      }
+    }
     const match = (r) => !q || r.code.toLowerCase().includes(q) || nameHas(r.code, r.name, q) || r.kinds.some((k) => (NB_KIND[k] || [k])[0].toLowerCase().includes(q)) || (r.why || []).join(" ").toLowerCase().includes(q);
     const wos = live.filter((r) => r.kinds[0] === "wo" && match(r));
     const gens = live.filter((r) => r.kinds[0] !== "wo" && match(r));
     const sec = (title, items) => { if (!items.length) return; body.append(el("div", "sec-t", title)); const g = el("div", "nb-grid"); items.forEach((it) => g.append(nbCard(it))); body.append(g); };
-    if (nbShow !== "wo" || true) sec("Workouts · return set by the bid · " + wos.length, nbShow === "all" || nbShow === "wo" || nbShow === "top" ? wos : []);
+    sec("Workouts · return set by the deal, risk grade A or B · " + wos.length, wos);
+    if (!wos.length && nbShow === "wo") body.append(el("p", "none", "No workout clears the bar today (grade A or B with 2% to the cash, or 1%+ worth 6% a year). The SPECIAL tab lists every live deal."));
     if (nbShow !== "wo") {
-      sec("Strongest generals · three rules, or two with FIT 90+ · " + gens.filter((r) => r.top).length, gens.filter((r) => r.top));
+      sec("Strongest generals · three rules, or two with FIT 90+, and no one-off profit · " + gens.filter((r) => r.top).length, gens.filter((r) => r.top));
       if (nbShow === "all") sec("Generals · one or two rules · " + gens.filter((r) => !r.top).length, gens.filter((r) => !r.top));
     }
     if (nbCur && (nbCur.avoid || []).length && nbShow !== "wo") {
@@ -1156,46 +1176,57 @@ table.t tr.mine td.nm b { color: var(--key); }
     }
   }
 
-  // ---------------------------------------------------------------- DEALS
-  let dealsDoc = null, dealsShow = store.get("jr-deals", "open");
-  const DSTAT = { open: ["OPEN", "ok"], announced: ["ANNOUNCED", "ok"], ended: ["PERIOD OVER", "miss"], closed: ["CLOSED", "miss"], withdrawn: ["WITHDRAWN", "miss"] };
-  const DKIND = { tender_offer: "Tender offer", self_tender: "Self-tender", squeeze_out: "Squeeze-out" };
+  // ---------------------------------------------------------------- SPECIAL SITUATIONS board
+  let boardDoc = null, dealsShow = store.get("jr-special", "live");
+  const DSTAT = { open: ["OPEN", "ok"], announced: ["ANNOUNCED", "ok"], ended: ["PERIOD OVER", "miss"], closed: ["CLOSED", "miss"], done: ["DONE", "miss"], withdrawn: ["WITHDRAWN", "miss"] };
+  const STYPE = { tender: "Tender offer", self_tender: "Self-tender", squeeze: "Squeeze-out", after: "After the tender", ratio: "Exchange ratio",
+    liquidation: "Liquidation", return: "Cash return", reverse: "Reverse merger", spinoff: "Spin-off" };
+  const sLive = (r) => r.status === "open" || r.status === "announced";
   function renderDeals() {
     const t = $("deals-t");
     t.replaceChildren();
-    const rows0 = (dealsDoc && dealsDoc.rows) || [];
-    const open = rows0.filter((r) => r.status === "open" || r.status === "announced");
-    $("n-deals").textContent = open.length ? String(open.length) : "";
-    if (!rows0.length) { t.append(el("caption", "none", "No deals seen yet. The daily scan fills this table from TDnet.")); return; }
-    $("deals-meta").textContent = "As of " + (dealsDoc.date || "") + " · " + open.length + " open · " + (rows0.length - open.length) + " closed in the last 45 days · bids read from the filings, prices from the last close.";
+    const rows0 = (boardDoc && boardDoc.rows) || [];
+    const live = rows0.filter(sLive);
+    $("n-deals").textContent = live.length ? String(live.length) : "";
+    const st = (boardDoc && boardDoc.stats) || {};
+    $("deals-stats").textContent = st.bids ? "Bids since " + st.since + ": " + st.bids + " tender offers · " + (st.raised || 0) + " raised · " + (st.hostile || 0) + " opposed by the board · "
+      + (st.failed || 0) + " failed · " + (st.withdrawn || 0) + " withdrawn · " + (st.partial || 0) + " partial" + (num(st.median_premium) ? " · median premium " + (st.median_premium * 100).toFixed(0) + "% to the undisturbed price" : "") + "." : "";
+    if (!rows0.length) { t.append(el("caption", "none", "No situations seen yet. The daily scan fills this table from TDnet.")); return; }
+    $("deals-meta").textContent = "As of " + (boardDoc.date || "") + " · " + live.length + " live (" + live.filter((r) => r.grade === "A").length + " grade A, " + live.filter((r) => r.grade === "B").length + " B, "
+      + live.filter((r) => r.grade === "C").length + " C) · terms read from the filings, prices from the last close.";
     const q = ($("deals-q").value || "").trim().toLowerCase();
-    const rows = rows0.filter((r) => (dealsShow === "all" || r.status === "open" || r.status === "announced")
-      && (!q || r.code.toLowerCase().includes(q) || nameHas(r.code, r.name, q) || (r.bidder || "").toLowerCase().includes(q)));
-    const cols = [["Status", "l"], ["Type", "l"], ["Code", "l"], ["Target", "l"], ["Bidder", "l"], ["Bid ¥", ""], ["Last ¥", ""], ["Spread", ""], ["Premium", ""],
-      ["Ends", ""], ["Days", ""], ["Board", "l"], ["Bid P/B", ""], ["Net cash ÷ bid", ""], ["Signals", "l"], ["Latest filing", "l"]];
+    const inType = (r) => dealsShow === "done" ? !sLive(r) : sLive(r) && (dealsShow === "live" || (dealsShow === "cash" && ["tender", "self_tender", "squeeze", "after"].includes(r.type))
+      || (dealsShow === "ratio" && r.type === "ratio") || (dealsShow === "other" && ["liquidation", "return", "reverse", "spinoff"].includes(r.type)));
+    const rows = rows0.filter((r) => inType(r) && (!q || r.code.toLowerCase().includes(q) || nameHas(r.code, r.name, q) || (r.counter_name || "").toLowerCase().includes(q)));
+    const cols = [["Grade", ""], ["Type", "l"], ["Code", "l"], ["Company", "l"], ["Counterparty", "l"], ["Terms", "l"], ["Deal ¥", ""], ["Last ¥", ""], ["Spread", ""], ["A year", ""],
+      ["Cash / effective", ""], ["Days", ""], ["What helps · what can break it", "l"], ["Latest filing", "l"]];
     const thead = el("thead"), hr = el("tr");
     cols.forEach(([c, cls]) => { const th = el("th", cls || null, c); th.scope = "col"; hr.append(th); });
     thead.append(hr); t.append(thead);
     const tb = el("tbody"), mine = mineSet();
+    if (!rows.length) { const tr = el("tr"), td = el("td", "l mut", "Nothing of this kind right now."); td.colSpan = cols.length; tr.append(td); tb.append(tr); }
     rows.forEach((r) => {
       const tr = el("tr", mine.has(r.code) ? "mine" : null);
-      const [lab, cls] = DSTAT[r.status] || [String(r.status || "").toUpperCase(), "miss"];
-      const st = el("td", "l"); st.append(el("span", "st " + cls, lab)); tr.append(st);
-      tr.append(el("td", "l mut", (DKIND[r.kind] || r.kind) + (r.mbo ? " · MBO" : "") + (r.partial ? " · partial" : "")));
+      const g = el("td"); const gb = el("span", "st " + (r.grade === "A" ? "ok" : "miss"), sLive(r) ? (r.grade || "—") : (DSTAT[r.status] || [String(r.status || "").toUpperCase()])[0]);
+      if (r.grade === "B" && sLive(r)) gb.style.color = "var(--amber)";
+      g.append(gb); tr.append(g);
+      tr.append(el("td", "l mut", (STYPE[r.type] || r.type) + (r.mbo ? " · MBO" : "") + (r.parent ? " · parent" : "") + (r.partial ? " · partial" : "") + (r.status === "announced" ? " · not yet open" : "")));
       const c1 = el("td", "l"); c1.append(codeBtn(r.code)); tr.append(c1);
       const nm = el("td", "nm"); nm.append(nameEl("b", null, r.code, r.name)); tr.append(nm);
-      tr.append(el("td", "l wrapcell", r.bidder || "—"));
-      tr.append(el("td", null, num(r.price) ? r.price.toLocaleString("en-US") + (r.old_price ? " ↑" : "") : "—"));
-      if (r.old_price) tr.lastChild.title = "raised from ¥" + r.old_price.toLocaleString("en-US");
+      tr.append(el("td", "l wrapcell", r.counter ? (r.counter + " " + enName(r.counter, r.counter_name)) : (r.counter_name || "—")));
+      tr.append(el("td", "l wrapcell", (r.terms || "—") + (r.old_price ? " (raised from ¥" + r.old_price.toLocaleString("en-US") + ")" : "")));
+      tr.append(el("td", null, num(r.price) ? r.price.toLocaleString("en-US") : "—"));
       tr.append(el("td", null, num(r.last) ? r.last.toLocaleString("en-US") : "—"));
-      tr.append(el("td", num(r.spread) ? (r.spread < -0.005 ? "neg" : r.spread >= 0.02 ? "pos" : null) : null, pctS(r.spread)));
-      tr.append(el("td", num(r.premium) && r.premium < 0.3 ? "neg" : null, pctS(r.premium, 0)));
-      tr.append(el("td", "mut", r.end || "—"));
-      tr.append(el("td", num(r.days_left) && r.days_left < 0 ? "mut" : null, num(r.days_left) ? String(r.days_left) : "—"));
-      tr.append(el("td", "l mut", r.board_view || "—"));
-      tr.append(el("td", num(r.offer_pb) && r.offer_pb < 0.8 ? "neg" : null, f2(r.offer_pb)));
-      tr.append(el("td", num(r.offer_net_cash) && r.offer_net_cash >= 0.7 ? "neg" : null, f2(r.offer_net_cash)));
-      const sg = el("td", "wrapcell"); (r.flags || []).forEach((x) => sg.append(el("span", "sig", x))); if (!(r.flags || []).length) sg.textContent = "—"; tr.append(sg);
+      tr.append(el("td", num(r.spread) ? (r.spread < -0.005 ? "neg" : r.spread >= 0.02 ? "pos" : null) : null, num(r.spread) ? pctS(r.spread) : (num(r.yield_) ? (r.yield_ * 100).toFixed(1) + "% paid" : "—")));
+      tr.append(el("td", num(r.ann) && r.ann >= 0.06 ? "pos" : null, num(r.ann) ? (r.ann > 3 ? ">300%" : (r.ann * 100).toFixed(0) + "%") : "—"));
+      tr.append(el("td", "mut", r.date || "—"));
+      tr.append(el("td", num(r.days) && r.days < 0 ? "mut" : null, num(r.days) ? String(r.days) : "—"));
+      const sg = el("td", "wrapcell");
+      (r.plus || []).forEach((x) => { const e = el("span", "sig", "+ " + x); sg.append(e); });
+      (r.concerns || []).forEach((x) => { const e = el("span", "sig", "− " + x); e.style.borderColor = "var(--amber-dim)"; sg.append(e); });
+      (r.flags || []).forEach((x) => sg.append(el("span", "sig", x)));
+      if (!sg.childNodes.length) sg.textContent = "—";
+      tr.append(sg);
       const lf = el("td", "wrapcell"); const a = link(r.last_url, (r.last_date || "") + " " + (r.last_title || "").slice(0, 60)); lf.append(a || document.createTextNode((r.last_date || "") + " " + (r.last_title || "").slice(0, 60))); tr.append(lf);
       tb.append(tr);
     });
@@ -1756,7 +1787,7 @@ table.t tr.mine td.nm b { color: var(--key); }
     const raw = ($("cmd-in").value || "").trim();
     const q = raw.toUpperCase().replace(/\s*<?GO>?$/, "").replace(/\s+(JT|JP|EQUITY)$/, "");
     if (!q) return;
-    const viewCmd = { RADAR: "radar", PORT: "port", PORTFOLIO: "port", CHEAP: "cheap", NETNET: "cheap", SCREEN: "cheap", NB: "nb", NOBRAINER: "nb", "NO-BRAINER": "nb", DEALS: "deals", TOB: "deals", VALUE: "value", PRE: "pre", "PRE-DEAL": "pre", COVERAGE: "mine", MINE: "mine", HELP: "help" }[q];
+    const viewCmd = { RADAR: "radar", PORT: "port", PORTFOLIO: "port", CHEAP: "cheap", NETNET: "cheap", SCREEN: "cheap", NB: "nb", NOBRAINER: "nb", "NO-BRAINER": "nb", DEALS: "deals", SPECIAL: "deals", TOB: "deals", ARB: "deals", VALUE: "value", PRE: "pre", "PRE-DEAL": "pre", COVERAGE: "mine", MINE: "mine", HELP: "help" }[q];
     if (viewCmd) { showView(viewCmd); $("cmd-in").value = ""; return; }
     if (/^[0-9][0-9A-Z]{3}$/.test(q)) { openDes(q); $("cmd-in").value = ""; return; }
     const ql = raw.toLowerCase();
@@ -1788,7 +1819,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   bindSeg("seg-mkt", (v) => { cheapMkt = v; store.set("jr-mkt", v); }, renderCheap);
   bindSeg("seg-adv", (v) => { cheapAdv = Number(v); store.set("jr-adv", v); }, renderCheap);
   bindSeg("seg-uni", (v) => { cheapUni = v; store.set("jr-uni", v); }, renderCheap);
-  bindSeg("seg-deals", (v) => { dealsShow = v; store.set("jr-deals", v); }, renderDeals);
+  bindSeg("seg-deals", (v) => { dealsShow = v; store.set("jr-special", v); }, renderDeals);
   bindSeg("seg-nb", (v) => { nbShow = v; store.set("jr-nb", v); }, renderNB);
   bindSeg("seg-pre", (v) => { preMin = Number(v); store.set("jr-pre", v); }, renderPre);
   bindSeg("seg-pgroup", (v) => { portGroup = v; store.set("jr-pgroup", v); }, renderPort);
@@ -1806,7 +1837,7 @@ table.t tr.mine td.nm b { color: var(--key); }
   function renderRadar() { renderTape(); renderIdeas(); renderDesk(); }
   function renderAll() { renderRadar(); renderPort(); renderCheap(); renderNB(); renderDeals(); renderValue(); renderPre(); renderMine(); fillDatalist(); }
 
-  const hashView = { "#port": "port", "#portfolio": "port", "#cheap": "cheap", "#nb": "nb", "#nobrainers": "nb", "#deals": "deals", "#value": "value", "#pre": "pre", "#mine": "mine", "#coverage": "mine", "#help": "help", "#radar": "radar" }[location.hash];
+  const hashView = { "#port": "port", "#portfolio": "port", "#cheap": "cheap", "#nb": "nb", "#nobrainers": "nb", "#deals": "deals", "#special": "deals", "#value": "value", "#pre": "pre", "#mine": "mine", "#coverage": "mine", "#help": "help", "#radar": "radar" }[location.hash];
   const saved = store.get("jr-view", "radar");
   showView(hashView || (VIEWS.includes(saved) ? saved : "radar"));
   renderAll();
@@ -1829,7 +1860,7 @@ table.t tr.mine td.nm b { color: var(--key); }
       renderAll();
     }, () => {});
     db.collection("frontrun").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "latest"); fr = d ? d.data() : null; renderAll(); }, () => {});
-    db.collection("deals").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "latest"); dealsDoc = d ? d.data() : null; renderDeals(); }, () => {});
+    db.collection("special").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "board"); boardDoc = d ? d.data() : null; renderDeals(); }, () => {});
     db.collection("nobrainers").onSnapshot((snap) => {
       const r = snap.docs.find((x) => x.id === "rules"), c = snap.docs.find((x) => x.id === "current"), st = snap.docs.find((x) => x.id === "status");
       nbDoc = r ? r.data() : null; nbCur = c ? c.data() : null; nbStatus = st ? st.data() : null;
