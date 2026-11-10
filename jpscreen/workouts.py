@@ -57,6 +57,93 @@ def parse_return(text: str) -> dict:
     return out
 
 
+LEG = re.compile(r"([^\s、。,()（）「」]{2,30}?)(?:の)?(?:普通)?株式[1.]?株に対して[、,]?([^\s、。,()（）「」]{2,30}?)(?:の)?(?:普通)?株式"
+                 r"([\d.]+)株を(?:割当|割り当て|、|,)")
+
+
+def parse_ratio(text: str) -> dict:
+    """The exchange terms as sentences state them ("Xの普通株式1株に対してYの普通株式0.88株を割当て"): tables lose
+    their columns in the PDF text ("1 0.88" reads "10.88"), sentences do not. One leg is a share exchange (X's holders
+    get Y); two legs into the same new company are a joint share transfer."""
+    t = tight(text)
+    legs, seen = [], set()
+    for m in LEG.finditer(t[:60000]):
+        frm = re.sub(r"^(但し|ただし|なお|また|及び|並びに|を|は|に|が)+", "", m.group(1))
+        frm = re.sub(r"^.*(?:割当比率|割当ての内容|の詳細)", "", frm)
+        n = 1.0 if m.group(3) == "." else to_num(m.group(3))     # a lone "1" sometimes survives only as "."
+        if not n or n <= 0 or n > 1000 or (frm, m.group(2)) in seen:
+            continue
+        seen.add((frm, m.group(2)))
+        legs.append(dict(frm=frm, to=m.group(2), n=n))
+    out: dict = {"legs": legs[:4]}
+    t = t.replace("月.日", "月1日")
+    m = re.search(r"(\d{4}年\d{1,2}月\d{1,2}日)(?:\([月火水木金土日]\))?(?:を|\(以下「)(?:本)?(?:株式交換|株式移転|合併)?(?:の)?効力発生日", t) or \
+        re.search(r"効力発生日[^0-9]{0,40}(\d{4}年\d{1,2}月\d{1,2}日)", t)
+    d = parse_date(m.group(1)) if m else None
+    out["effective"] = d.isoformat() if d else None
+    out["delisting"] = bool(re.search(r"上場廃止(となる|となります|の予定|される予定)", t[:30000]))
+    return out
+
+
+def _norm_name(x: str) -> str:
+    x = nfkc(x or "")
+    x = re.sub(r"株式会社|\(株\)|㈱|\s", "", x)
+    return x.replace("ホールディングス", "HD").replace("グループ", "G")
+
+
+def match_party(name: str, parties: dict[str, str]) -> Optional[str]:
+    """Which listed party a name in the filing means (filings abbreviate: "TSIHD", "月島ホールディングス")."""
+    n = _norm_name(name)
+    best, score, tie = None, 0, False
+    for code, full in parties.items():
+        f = _norm_name(full)
+        k = 0
+        while k < min(len(n), len(f)) and n[k] == f[k]:
+            k += 1
+        if n and (n in f or f in n):
+            k = max(k, min(len(n), len(f)))
+        if k > score:
+            best, score, tie = code, k, False
+        elif k == score and k:
+            tie = True
+    return best if score >= 2 and not tie else None
+
+
+_PARTY_INDEX: dict = {}
+BEFORE_OK = set("社とび、,(（ ・")
+
+
+def other_party(title: str, universe, exclude: str) -> Optional[str]:
+    """Another listed company named in a title, matched on its full name at a name boundary: the name must follow
+    "株式会社", "と", "及び" or the start, so 帝人フロンティア is not フロンティア and ワールド is not ワールドホールディングス."""
+    if id(universe) not in _PARTY_INDEX:
+        idx = []
+        pairs = universe.items() if isinstance(universe, dict) else ((c.code, c) for c in universe)
+        for code_, c in pairs:
+            nm = re.sub(r"株式会社|\(株\)|㈱", "", nfkc(getattr(c, "name", "") or "")).strip()
+            if len(nm) >= 2:
+                idx.append((nm, code_))
+        _PARTY_INDEX.clear()
+        _PARTY_INDEX[id(universe)] = sorted(idx, key=lambda x: -len(x[0]))
+    t = nfkc(title)
+    taken = [False] * len(t)
+    found = None
+    for nm, code in _PARTY_INDEX[id(universe)]:
+        i = t.find(nm)
+        while i >= 0:
+            j = i + len(nm)
+            ok = (i == 0 or t[i - 1] in BEFORE_OK) and not any(taken[i:j])
+            after = t[j:j + 4]
+            ok = ok and (after == "" or after.startswith(("株式会社", "と", "の", "(", "及", "並", "、", " ", "に", "を", "は", "・", "・")))
+            if ok:
+                for k in range(i, j):
+                    taken[k] = True
+                if code != exclude and found is None:
+                    found = code
+            i = t.find(nm, j)
+    return found
+
+
 class SituationBook:
     """Share exchanges, mergers, liquidations, cash returns, reverse mergers and spin-offs, followed across filings."""
 
@@ -77,8 +164,8 @@ class SituationBook:
                 self.sits[k] = s
 
     def live(self, code: str, typ: Optional[str] = None) -> Optional[dict]:
-        c = [s for s in self.sits.values() if s["code"] == code and (typ is None or s["type"] == typ)
-             and s.get("status") not in ("done", "withdrawn")]
+        c = [s for s in self.sits.values() if (s["code"] == code or code in (s.get("parties") or []))
+             and (typ is None or s["type"] == typ) and s.get("status") not in ("done", "withdrawn")]
         return max(c, key=lambda s: s.get("last_date") or "") if c else None
 
     def update(self, ctx, items: Iterable, names, max_reads: int = 30, log_=print) -> int:
@@ -89,6 +176,8 @@ class SituationBook:
             if not tag:
                 continue
             code = norm_code(d.code)
+            if code not in ctx.universe:
+                continue
             if tag.signal == "warning":
                 if tag.kind == "withdrawn":
                     s = self.live(code)
@@ -98,39 +187,49 @@ class SituationBook:
             typ = SIT_TYPE.get(tag.kind)
             if not typ or (typ == "spinoff" and not tag.flags.get("spinoff")):
                 continue
-            subject, counter = code, None
-            if typ == "ratio":
-                if tag.role == "acquirer":
-                    other = tag.target_code or names.find(title, exclude=code)
-                    if not other:
-                        continue                    # an unlisted company absorbed: nothing to trade
-                    subject, counter = norm_code(other), code
-            if subject not in ctx.universe:
+            if re.search(r"特別利益|特別損失|端数|決算開示|補足資料|ご案内|説明資料", title):
                 continue
-            s = self.live(subject, typ)
+            s = self.live(code, typ)
+            parties = None
+            if typ == "ratio":
+                other = tag.target_code or other_party(title, ctx.universe, code)
+                other = norm_code(other) if other else None
+                if other and other in ctx.universe and other != code:
+                    parties = sorted([code, other])
+                    s = next((x for x in self.sits.values() if x["type"] == "ratio" and x.get("parties") == parties
+                              and x.get("status") not in ("done", "withdrawn")), None)
+                elif s is None:
+                    continue                        # no listed counterparty: an unlisted company absorbed, nothing to trade
             if s is None:
                 if DONE.search(title) and typ != "reverse":
                     continue                        # the end of something never seen from the start
-                key = f"{subject}:{typ}:{d.ymd}"
-                comp = ctx.universe.get(subject)
-                s = self.sits.setdefault(key, dict(key=key, code=subject, type=typ, kind=tag.kind,
-                                                    name=comp.name if comp else subject, first_date=d.date.isoformat(),
-                                                    status="open", docs=[]))
-            if counter and not s.get("counter"):
-                s["counter"] = counter
-            need = (typ == "ratio" and not s.get("ratio_target")) or (typ == "liquidation" and s.get("per_share") is None) \
-                or (typ == "return" and s.get("per_share") is None) or not s.get("docs")
+                key = ("-".join(parties) if parties else code) + f":{typ}:{d.ymd}"
+                comp = ctx.universe.get(code)
+                s = self.sits.setdefault(key, dict(key=key, code=code, type=typ, kind=tag.kind, name=comp.name if comp else code,
+                                                    first_date=d.date.isoformat(), status="open", docs=[]))
+                if parties:
+                    s["parties"] = parties
+                    s["counter"] = [c for c in parties if c != code][0]
+            need = (typ == "ratio" and not s.get("ratio_target")) or (typ in ("liquidation", "return") and s.get("per_share") is None) \
+                or not s.get("docs")
             cat = ctx.store.parsed(d.id)
-            if (cat is None or (need and not cat.get("doc_read"))) and need and reads < max_reads:
+            if (cat is None or not cat.get("doc_read") or (typ == "ratio" and "legs" not in cat)
+                    or (typ == "return" and "per_share" not in cat)) and need and reads < max_reads:
                 text = doc_text(ctx, d)
                 reads += 1
                 cat = parse_catalyst(tag.kind, text or "")
                 if typ == "return" and text:
                     cat.update(parse_return(text))
+                if typ == "ratio" and text:
+                    cat.update(parse_ratio(text))
                 cat["doc_read"] = bool(text)
                 ctx.store.put_parsed(d.id, cat)
             self._merge(s, cat or {}, d, title, ctx)
             n += 1
+        # a pair whose terms were never read is not a situation anyone can act on
+        self.sits = {k: s for k, s in self.sits.items() if not (
+            s["type"] == "ratio" and not s.get("ratio_target") and s.get("unread_tries", 0) >= 1
+            and not re.search(r"株式移転|株式交換", " ".join(x.get("title", "") for x in s.get("docs") or [])))}
         if reads:
             log_(f"situations: {reads} documents read")
         return n
@@ -139,16 +238,34 @@ class SituationBook:
         day = d.date.isoformat()
         typ = s["type"]
         if typ == "ratio":
-            if cat.get("ratio_target") and not s.get("ratio_target"):
-                s["ratio_target"], s["ratio_parent"] = cat["ratio_target"], cat.get("ratio_parent") or 1
-            if not s.get("counter"):
-                for c in cat.get("codes") or []:
-                    c = norm_code(c)
-                    if c != s["code"] and c in ctx.universe:
-                        s["counter"] = c
-                        break
-            for k in ("effective", "delisting", "wholly_owned"):
-                if cat.get(k) and not s.get(k):
+            legs = cat.get("legs") or []
+            if legs and not s.get("ratio_target") and s.get("parties"):
+                names_ = {c: (ctx.universe.get(c).name if ctx.universe.get(c) else c) for c in s["parties"]}
+                tos = {leg["to"] for leg in legs}
+                me = norm_code(d.code)
+
+                def who(nm):        # "当社" is the company filing; other names are matched to the two parties
+                    return me if nm.startswith("当社") and me in names_ else match_party(nm, names_)
+                mapped = [(who(leg["frm"]), leg) for leg in legs]
+                mapped = [(c, leg) for c, leg in mapped if c]
+                if len(mapped) >= 2 and len(tos) == 1 and mapped[0][0] != mapped[1][0]:
+                    # joint share transfer: both sets of holders get the new holding company's shares
+                    (ca, la), (cb, lb) = mapped[0], mapped[1]
+                    sub, oth, r_ = (cb, ca, lb["n"] / la["n"]) if lb["n"] != 1 or la["n"] == 1 else (ca, cb, la["n"] / lb["n"])
+                    s.update(code=sub, counter=oth, ratio_target=round(r_, 6), ratio_parent=1, mode="transfer")
+                elif mapped:
+                    # share exchange or merger: the first company's holders get the other's shares
+                    sub, leg = mapped[0]
+                    oth = [c for c in s["parties"] if c != sub][0]
+                    if who(leg["to"]) in (oth, None):
+                        s.update(code=sub, counter=oth, ratio_target=leg["n"], ratio_parent=1, mode="exchange")
+                if s.get("ratio_target"):
+                    comp = ctx.universe.get(s["code"])
+                    s["name"] = comp.name if comp else s["code"]
+            if not s.get("ratio_target") and cat.get("doc_read"):
+                s["unread_tries"] = s.get("unread_tries", 0) + 1
+            for k in ("effective", "delisting"):
+                if cat.get(k) and (not s.get(k) or k == "effective"):
                     s[k] = cat[k]
         elif typ == "liquidation":
             if cat.get("distribution_per_share") and s.get("per_share") is None:
@@ -180,6 +297,9 @@ def grade_cash(r: dict) -> tuple[str, list[str], list[str]]:
     """Risk grade for tenders, self-tenders, squeeze-outs and after-tender stubs: (grade, what helps, what can break it)."""
     plus, con, c_level = [], [], 0          # c_level: 0 → A, 1 → B, 2 → C
     sp = r.get("spread")
+    if r.get("pre_news"):
+        con.append("just announced: the price has not caught up with the bid yet (filed after the close, or still limit-up), so there is no spread to read")
+        c_level = max(c_level, 1)
     if r.get("price") is None:
         con.append("bid price not read from the filing: open it"); c_level = 2
     if r.get("status") == "announced":
@@ -199,6 +319,9 @@ def grade_cash(r: dict) -> tuple[str, list[str], list[str]]:
     if sp is not None:
         if sp > 0.10 and r["type"] != "after":
             con.append(f"{sp * 100:.0f}% to an agreed bid: the market doubts it closes; read the conditions before counting it")
+            c_level = 2
+        elif sp < -0.10 or (sp < -0.03 and r["type"] == "self_tender"):
+            con.append(f"discount bid, {-sp * 100:.0f}% below the market: built to take a named holder's block, not for outside shareholders")
             c_level = 2
         elif sp < -0.03:
             con.append(f"trades {-sp * 100:.0f}% above the bid: you are paying for a raise or a rival bid that may not come")
@@ -253,15 +376,16 @@ def board(ctx, deals: DealBook, sits: SituationBook, today: str, activists=None)
     for d in deals.deals.values():
         if d.get("kind") != "tender_offer" or d.get("status") != "closed" or d.get("success") is False or not d.get("price"):
             continue
-        if not d.get("delisting") or d["code"] in squeezing or not d.get("last_date"):
+        if not d.get("delisting") or d.get("partial") or d.get("board_view") != "support" or d["code"] in squeezing \
+                or not d.get("last_date"):
             continue
         age = (t0 - dt.date.fromisoformat(d["last_date"])).days
         last, last_date = _price(ctx, d["code"])
         if age > AFTER_DAYS or not last or (last_date or "") < d["last_date"]:
             continue                                # delisted already, or no trade since the result
         sp = round(d["price"] / last - 1, 4)
-        if abs(sp) > 0.15:
-            continue                                # not pinned to the bid: something else is going on
+        if not (-0.03 <= sp <= 0.04):
+            continue                                # not pinned to the bid: the company is not being cashed out at it
         row = dict(key=d["key"] + ":after", type="after", code=d["code"], name=d["name"], status="open", price=d["price"],
                    last=last, px_date=last_date, spread=sp, counter_name=d.get("bidder"), mbo=d.get("mbo"), parent=d.get("parent"),
                    date=None, days=max(90 - age, 30), terms=f"¥{d['price']:,.0f} cash at the squeeze-out",
@@ -288,14 +412,17 @@ def board(ctx, deals: DealBook, sits: SituationBook, today: str, activists=None)
                 implied = s["ratio_target"] / (s.get("ratio_parent") or 1) * cq
                 sp = implied / last - 1
                 row.update(price=round(implied, 1), spread=round(sp, 4), ann=_ann(sp, row.get("days")),
-                           terms=f"1 : {s['ratio_target']:g} × ¥{cq:,.0f}")
+                           terms=("joint holding company · " if s.get("mode") == "transfer" else "")
+                           + f"1 share = {s['ratio_target']:g} of the other × ¥{cq:,.0f}")
                 if abs(sp) > 0.25:
                     row["grade"] = "C"
                     row["concerns"].append(f"implied value is {sp * 100:+.0f}% from the market: the ratio's direction or the "
                                            "counterparty was probably misread; open the filing")
                 else:
-                    row["concerns"].append("unhedged you are long the acquirer until the effective date: the spread is only "
+                    row["concerns"].append("unhedged you are long the other company until the effective date: the spread is only "
                                            "locked by shorting it")
+                    if (row.get("days") or 0) > 120:
+                        row["concerns"].append(f"{row['days']} days to the effective date: approvals and a shareholder vote still ahead")
                     if sp < 0.01:
                         row["concerns"].append("under 1%: nothing left after costs")
                     row["plus"].append("the ratio is fixed: the target follows the acquirer's price")

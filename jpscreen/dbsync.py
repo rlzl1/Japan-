@@ -106,6 +106,49 @@ def load_value_tags(db_dir: Optional[str | Path]) -> tuple[dict, dict]:
     return tags, rows
 
 
+def restore_value(store: Store, db_dir: Optional[str | Path]) -> Optional[dict]:
+    """The weekly value screen rebuilt from the page's database, for a container that starts empty: every screened
+    company from the screen/p* documents, the lists from watchlist/*, and what the slim rows leave out (profit,
+    source, top holder) from the restored fundamentals. Without it a weekday run has no screen to re-price and no
+    companies to run the no-brainer rules on."""
+    from .value import top_corporate_holder
+    rows: dict[str, dict] = {}
+    for p in collection_files(db_dir, "screen"):
+        for r in _read(p).get("rows") or []:
+            rows[r["code"]] = dict(r)
+    if not rows:
+        return None
+    lists, tags = {}, {}
+    meta = None
+    for p in collection_files(db_dir, "watchlist"):
+        doc = _read(p)
+        if p.stem == "meta":
+            meta = doc
+            continue
+        lists[p.stem] = doc
+        for r in doc.get("rows") or []:
+            tags.setdefault(r["code"], []).append(p.stem)
+            if r["code"] in rows:
+                for k, v in r.items():
+                    rows[r["code"]].setdefault(k, v)
+    for code, r in rows.items():
+        if r.get("src") and not r.get("source"):
+            r["source"] = r["src"]
+        if r.get("ni") is not None and r.get("source"):
+            continue
+        f = store.fundamentals(code)
+        if f is None:
+            continue
+        r.setdefault("ni", f.net_income)
+        r.setdefault("op", f.op_income)
+        r.setdefault("source", f.source or "restored")
+        if "top_holder" not in r:
+            r["top_holder"], pct = top_corporate_holder(f)
+            r.setdefault("top_holder_pct", pct)
+    lists["_tags"] = tags
+    return dict(meta=meta or {}, lists=lists, rows_all=list(rows.values()))
+
+
 def plan_batches(out_db: str | Path, db_dir: Optional[str | Path], versions: dict[str, int],
                  deletes: Optional[list[str]] = None) -> list[list[dict]]:
     """Writes for every exported document that differs from the downloaded copy, pinned to its version."""

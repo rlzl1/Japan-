@@ -134,7 +134,7 @@ def parse_tender(text: str) -> dict:
         out["board_view"] = "support"
     elif re.search(r"応募.{0,15}(中立|株主(の)?(皆様の)?判断に委ね)", t[:20000]):
         out["board_view"] = "neutral"
-    elif re.search(r"反対(の)?意見|反対する", t[:20000]):
+    elif re.search(r"本公開買付けに(?:対して|対し)?反対|反対の意見を表明|反対意見を表明|反対する(?:旨の)?(?:意見|決議)", t[:8000]):
         out["board_view"] = "oppose"
     elif re.search(r"意見(を)?留保|意見の表明を留保", t[:20000]):
         out["board_view"] = "reserve"

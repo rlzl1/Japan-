@@ -72,6 +72,7 @@ def db_docs(store: Store) -> dict[str, dict]:
 
 SCREEN_FIELDS = ("code", "name", "market", "sector", "price", "price_date", "mcap", "re_index", "ncav_mcap", "am_mcap", "pe",
                  "pe_fwd", "pb", "div_yield", "treasury_pct", "profit_years", "years", "top_holder_pct", "adv", "fit", "lists",
+                 "ni", "op", "top_holder", "src",     # what a restored screen needs for the no-brainer rules
                  "nb")           # nb: why the company is or is not a no-brainer (nobrainer.build)
 SCREEN_PARTS = 8
 
@@ -82,7 +83,9 @@ def screen_parts(rows: list[dict]) -> dict[str, dict]:
     for r in rows:
         if not r.get("mcap") or not r.get("source"):
             continue
-        slim = {k: r[k] for k in SCREEN_FIELDS if r.get(k) not in (None, "", [])}
+        r = dict(r, src=(r.get("source") or "")[:6])
+        slim = {k: (v[:24] if k == "top_holder" and isinstance(v, str) else v) for k in SCREEN_FIELDS
+                if (v := r.get(k)) not in (None, "", [])}
         part = parts[f"p{zlib.crc32(r['code'].encode()) % SCREEN_PARTS}"]
         part["rows"].append(slim)
         part["count"] += 1

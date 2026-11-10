@@ -203,6 +203,14 @@ def cmd_daily(args, ctx, edinet):
         if not (runs_dir / p.name).exists():
             d = _json.loads(p.read_text())
             ctx.store.write_json(f"runs/{p.name}", d.get("data") if isinstance(d.get("data"), dict) and "version" in d else d)
+    if not (ctx.store.read_json("value.json", {}) or {}).get("rows_all"):
+        from .dbsync import restore_value
+        value = restore_value(ctx.store, db)
+        if value:
+            ctx.store.write_json("value.json", value)
+            ctx.value_tags = value["lists"].get("_tags", {})
+            ctx.value_rows = {r["code"]: r for r in value["rows_all"]}
+            print(f"restored the value screen from the page's database: {len(value['rows_all'])} companies")
     if not ctx.value_tags:
         ctx.value_tags, ctx.value_rows = load_value_tags(db)
     today = today_jst()

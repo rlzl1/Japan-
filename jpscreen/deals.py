@@ -16,7 +16,7 @@ from .docparse import parse_tender, tight, to_num
 from .frontrun import match_activist
 from .prices import YJ_HISTORY, parse_history_page
 from .tdnet import Disclosure
-from .util import nfkc, norm_code
+from .util import nfkc, norm_code, parse_date
 
 TOB = re.compile(r"公開買付")
 SQUEEZE = re.compile(r"株式等売渡請求|売渡請求|株式併合.*(上場廃止|臨時株主総会|整理銘柄)")
@@ -27,7 +27,9 @@ WITHDRAWN = re.compile(r"撤回|中止")
 OPINION = re.compile(r"意見表明|賛同|応募(の)?推奨|中立|反対")
 OWN = re.compile(r"当社(株式|株券|普通株式|の株式|の株券|株)|当社に対する|当社を")
 NOT_A_DEAL = re.compile(r"ETF|投資法人|REIT|インフラファンド|応募契約|応募(の)?(予定|方針)|売却(予定|方針)|特別利益|特別損失|"
-                        r"持分法適用会社|子会社株式|関連会社株式|の株式に対する公開買付けへの応募")
+                        r"持分法適用会社|子会社株式|関連会社株式|公開買付けへの応募|による応募|への応募|"
+                        r"準ずる行為|買集め|子会社による自己株式|子会社における自己株式")
+STALE_DAYS = 45             # an open deal with no closing date and no filing for this long is taken as over
 KEEP_CLOSED_DAYS = 45       # closed deals stay on the page this long
 MEMORY_DAYS = 180           # and in the memory this long
 
@@ -41,7 +43,10 @@ def bidder_from_title(title: str) -> Optional[str]:
     m = re.search(r"([^「」『』()（）、]{2,60}?)による", t)
     if not m:
         return None
-    b = re.sub(r"^(当社(の)?(親会社|筆頭株主|主要株主|その他の関係会社|代表取締役[^で]*)である)", "", m.group(1)).strip()
+    b = m.group(1)
+    if "である" in b:                # "当社の親会社である…", "その他の関係会社の親会社である…"
+        b = b.rsplit("である", 1)[1]
+    b = re.sub(r"^(及び|並びに)", "", b).strip()
     return b[:60] or None
 
 
@@ -70,15 +75,31 @@ def close_before(http, symbol: str, day: str) -> Optional[tuple[str, float]]:
     return (rows[0][0], rows[0][1]) if rows else None
 
 
+def parse_squeeze_dates(text: str) -> dict:
+    """When a share consolidation takes effect (the cash-out date) and when the stock delists."""
+    t = tight(text)
+    out: dict = {}
+    for key, pat in (("end", r"(?:株式併合の)?効力発生日[^0-9]{0,30}(\d{4}年\d{1,2}月\d{1,2}日)"),
+                     ("delisting_date", r"上場廃止日[^0-9]{0,30}(\d{4}年\d{1,2}月\d{1,2}日)"),
+                     ("meeting", r"臨時株主総会(?:の)?(?:開催)?(?:予定)?日[^0-9]{0,30}(\d{4}年\d{1,2}月\d{1,2}日)")):
+        m = re.search(pat, t)
+        d = parse_date(m.group(1)) if m else None
+        out[key] = d.isoformat() if d else None
+    return out
+
+
 def parse_result(text: str) -> dict:
     """The outcome in a 結果 filing: shares tendered and whether the bid went through."""
     t = tight(text)
     out: dict = {}
     m = re.search(r"応募株券等の(?:総)?数[^0-9]{0,40}([\d,]+)株", t)
     out["tendered"] = to_num(m.group(1)) if m else None
-    if re.search(r"下限に満たな|不成立|成立しませんでした|買付け等を行いません|買付け等を行わない", t[:20000]):
+    # a result filing also recounts the conditions ("下限に満たない場合は…行いません"): only the past tense is a failure
+    if re.search(r"下限に満たなかった|下限に達しなかった|不成立となり|成立しませんでした|成立しなかった|"
+                 r"買付け等を行わないこと(と|に)(なり|いたし)|全部の買付け等を行いません(?!。?(なお|ただし)?[^。]{0,40}場合)", t[:20000]) \
+            and not re.search(r"下限[^。]{0,40}以上となりましたので|全部の買付け等を行います", t[:20000]):
         out["success"] = False
-    elif re.search(r"成立|買付け等を行います|全部の買付け|応募株券等の全部", t[:20000]):
+    else:
         out["success"] = True
     m = re.search(r"所有割合[^0-9]{0,30}([\d.]+)%", t[-15000:])
     out["owned_after_pct"] = to_num(m.group(1)) if m else None
@@ -158,14 +179,21 @@ class DealBook:
                 key = f"{target}:{kind}:{d.ymd}"
                 comp = ctx.universe.get(target)
                 deal = self.deals.setdefault(key, dict(key=key, code=target, kind=kind, name=comp.name if comp else target,
-                                                         first_date=d.date.isoformat(), bumps=0, extensions=0, docs=[],
-                                                         status=None))
+                                                         first_date=d.date.isoformat(), first_time=d.time.strftime("%H:%M"),
+                                                         bumps=0, extensions=0, docs=[], status=None))
+                if kind == "squeeze_out":       # the cash-out pays the price of the tender that came before it
+                    prior = self.latest(target, "tender_offer")
+                    if prior and prior.get("price") and (d.date - dt.date.fromisoformat(prior["first_date"])).days <= 270:
+                        deal.update(price=prior["price"], bidder=prior.get("bidder"), mbo=prior.get("mbo"), parent=prior.get("parent"),
+                                    from_tender=True)
             need = deal.get("price") is None or deal.get("end") is None or hint in ("changed", "closed")
             cat = ctx.store.parsed(d.id)
             if (cat is None or (need and not cat.get("doc_read"))) and reads < max_reads:
                 text = doc_text(ctx, d)
                 reads += 1
                 cat = parse_tender(text or "") if text else {}
+                if kind == "squeeze_out" and text:      # its own dates; the price only when no tender was seen before
+                    cat = dict(price=None if deal.get("from_tender") else cat.get("price"), **parse_squeeze_dates(text))
                 if hint == "closed" and text:
                     cat.update(parse_result(text))
                 cat["doc_read"] = bool(text)
@@ -255,6 +283,9 @@ class DealBook:
             if deal.get("status") not in ("closed", "withdrawn") and deal.get("end"):
                 if (t0 - dt.date.fromisoformat(deal["end"])).days > 5:
                     deal["status"] = "ended"       # the period has passed and no result filing was seen
+            elif deal.get("status") not in ("closed", "withdrawn", "ended") and not deal.get("end") and deal.get("last_date") \
+                    and (t0 - dt.date.fromisoformat(deal["last_date"])).days > STALE_DAYS:
+                deal["status"] = "ended"           # no closing date read and nothing filed since: over, or never a live bid
             if deal.get("ref_price") is None:
                 before = [r for r in ((q.history if q else None) or []) if r[0] < deal["first_date"]]
                 if before:
@@ -271,8 +302,17 @@ class DealBook:
             price = deal.get("price")
             if q and q.price:
                 live["last"], live["px_date"] = q.price, q.price_date
-                if price:
-                    live["spread"] = round(price / q.price - 1, 4)
+                # a bid filed after the close has not traded yet: the last price is the undisturbed one, not a spread
+                pre = (q.price_date or "") < deal["first_date"] or ((q.price_date or "") == deal["first_date"]
+                                                                    and (deal.get("first_time") or "16:00") >= "15:20")
+                if pre:
+                    live["pre_news"] = True
+                elif price:
+                    sp = round(price / q.price - 1, 4)
+                    if sp > 0.10 and (t0 - dt.date.fromisoformat(deal["first_date"])).days <= 4:
+                        live["pre_news"] = True         # days old and far below the bid: still locked limit-up
+                    else:
+                        live["spread"] = sp
             if price and deal.get("ref_price"):
                 live["premium"] = round(price / deal["ref_price"] - 1, 4)
             if deal.get("end"):
