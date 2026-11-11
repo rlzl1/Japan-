@@ -74,7 +74,7 @@ SCREEN_FIELDS = ("code", "name", "market", "sector", "price", "price_date", "mca
                  "pe_fwd", "pb", "div_yield", "treasury_pct", "profit_years", "years", "top_holder_pct", "adv", "fit", "lists",
                  "ni", "op", "top_holder", "src",     # what a restored screen needs for the no-brainer rules
                  "nb")           # nb: why the company is or is not a no-brainer (nobrainer.build)
-SCREEN_PARTS = 8
+SCREEN_PARTS = 12
 
 
 def screen_parts(rows: list[dict]) -> dict[str, dict]:
